@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LocalDebuggerCommandArguments>--bim C:\pwcoco_test\testbim.bim --phen1_file C:\pwcoco_test\test.txt --verbose 0</LocalDebuggerCommandArguments>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LocalDebuggerCommandArguments>--bim C:\pwcoco_test\testbim.bim --phen1_file C:\pwcoco_test\test.txt --verbose 0</LocalDebuggerCommandArguments>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LocalDebuggerCommandArguments>--bfile "C:\Users\jr18055\OneDrive - University of Bristol\Documents\pwcoco\pwcoco_test\testbim" --phen1_file "C:\Users\jr18055\OneDrive - University of Bristol\Documents\pwcoco\pwcoco_test\test.txt" --out "C:\Users\jr18055\OneDrive - University of Bristol\Documents\pwcoco\pwcoco_test\out" --chr 9</LocalDebuggerCommandArguments>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LocalDebuggerCommandArguments>--bfile "C:\Users\jr18055\OneDrive - University of Bristol\Documents\pwcoco\pwcoco_test\testbim" --phen1_file "C:\Users\jr18055\OneDrive - University of Bristol\Documents\pwcoco\pwcoco_test\test.txt" --out "C:\Users\jr18055\OneDrive - University of Bristol\Documents\pwcoco\pwcoco_test\out" --chr 9</LocalDebuggerCommandArguments>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
+</Project>
