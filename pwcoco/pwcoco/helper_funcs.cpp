@@ -99,10 +99,32 @@ std::vector<std::size_t> v_sort_indices(const std::vector<std::string> &v)
 	return idx;
 }
 
-void eigenVector2Vector(Eigen::VectorXd &x, std::vector<double> &y) {
+void eigenVector2Vector(Eigen::VectorXd &x, std::vector<double> &y)
+{
 	y.resize(x.size());
 	for (int i = 0; i < x.size(); i++)
 		y[i] = x[i];
+}
+
+/*
+ * Implementation of logsum from mvc library in R
+ * TODO This differs slightly from the R result - need to check this out
+ */
+double logsum(const std::vector<double> &x)
+{
+	std::vector<double> temp = x;
+	double sum = 0.0;
+	auto m_it = *std::max_element(temp.begin(), temp.end());
+	for (auto& it : temp) {
+		sum += exp(it - m_it);
+	}
+	return m_it + log(sum);
+}
+
+double logdiff(double x, double y)
+{
+	double m = std::max(x, y);
+	return m + log(exp(x - m) - exp(y - m));
 }
 
 /*
@@ -165,3 +187,59 @@ std::vector<int> vm_intersect(const std::map<std::string, int> &m, const std::ve
 	return result;
 }
 */
+
+std::vector<double> lm(const std::vector<double> &x, const std::vector<double> &y)
+{
+	if (x.size() != y.size()) {
+		ShowError("Cannot compute regression for colocalisation due to differing sizes of vectors.");
+	}
+	std::size_t n = x.size();
+	double sumX = std::accumulate(x.begin(), x.end(), 0.0);
+	double sumY = std::accumulate(y.begin(), y.end(), 0.0);
+	double meanX = sumX / n;
+	double meanY = sumY / n;
+	std::vector<double> a = x;
+	std::vector<double> b = y;
+	transform(a.begin(), a.end(), a.begin(), [=](double r) { return r - meanX; });
+	transform(b.begin(), b.end(), b.begin(), [=](double r) { return r - meanY; });
+
+	double sdXX = 0.0, sdXY = 0.0;
+	for (int i = 0; i < n; i++) {
+		sdXX += a[i] * a[i];
+		sdXY += a[i] * b[i];
+	}
+
+	double m = sdXY / sdXX;
+	double c = meanY - (m * meanX);
+	
+	std::vector<double> res = x;
+	transform(res.begin(), res.end(), res.begin(), [=](double r) { return m * r + c; });
+	return res;
+
+}
+
+std::vector<double> lm_fixed(const std::vector<double> &x, const std::vector<double> &y)
+{
+	if (x.size() != y.size()) {
+		throw("Cannot compute regression for colocalisation due to differing sizes of vectors.");
+	}
+	size_t i, n = x.size();
+	double sumXY = 0.0;
+	double sumXX = 0.0;
+	for (size_t i = 0; i < n; i++) {
+		sumXY += x[i] * y[i];
+		sumXX += x[i] * x[i];
+	}
+	double m = sumXY / sumXX;
+
+	std::vector<double> res = x;
+	transform(res.begin(), res.end(), res.begin(), [=](double r) { return m * r; });
+	return res;
+}
+
+std::string string2upper(const std::string &str)
+{
+	std::string t = str;
+	transform(t.begin(), t.end(), t.begin(), ::toupper);
+	return t;
+}

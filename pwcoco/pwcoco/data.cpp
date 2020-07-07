@@ -71,12 +71,12 @@ void phenotype::read_phenofile(phenotype *pheno, string filename)
 {
 	string line;
 	map<string, int>::iterator iter;
-	int count = 0, i;
+	int count = 0;
 	double h = 0.0, Vp = 0.0;
 
 	// Buffers
 	string snp_name_buf, allele1_buf, allele2_buf;
-	double freq_buf = -1.0, beta_buf, se_buf, pval_buf, n_buf;
+	double freq_buf = -1.0, beta_buf, se_buf, pval_buf, n_buf, nc_buf;
 
 	ifstream pfile(filename.c_str());
 	if (!pfile) {
@@ -89,7 +89,7 @@ void phenotype::read_phenofile(phenotype *pheno, string filename)
 	while (getline(pfile, line)) {
 		istringstream ss(line);
 		string substr;
-		int tab = 0, j;
+		int tab = 0;
 
 		// Replace buffers
 		snp_name_buf = allele1_buf = allele2_buf = "";
@@ -107,13 +107,12 @@ void phenotype::read_phenofile(phenotype *pheno, string filename)
 				break;
 			case 1: // Second column contains allele 1
 			case 2: // Third column contains allele 2
-				transform(substr.begin(), substr.end(), substr.begin(), ::toupper);
 				if (substr == "." || substr == "NA")
 					break;
 				if (tab == 1)
-					allele1_buf = substr;
+					allele1_buf = string2upper(substr);
 				else
-					allele2_buf = substr;
+					allele2_buf = string2upper(substr);
 				break;
 			case 3: // Fourth column contains allele frequency of A1
 				freq_buf = atof(substr.c_str());
@@ -136,6 +135,19 @@ void phenotype::read_phenofile(phenotype *pheno, string filename)
 		if (freq_buf == -1.0)
 			continue;
 
+		if (isnan(beta_buf) || isinf(beta_buf) || !isfinite(beta_buf)) {
+			continue;
+		}
+
+		if (beta_buf == 0.0) {
+			ShowWarning("SNP " + snp_name_buf + " in file " + filename + " has zero beta. Skipping.", true); // TODO verbose
+			continue;
+		}
+
+		if (isnan(se_buf) || isinf(se_buf) || !isfinite(se_buf)) {
+			continue;
+		}
+
 		// Add SNPs
 		pheno->snp_name.push_back(snp_name_buf);
 		pheno->allele1.push_back(allele1_buf);
@@ -145,14 +157,14 @@ void phenotype::read_phenofile(phenotype *pheno, string filename)
 		pheno->se.push_back(se_buf);
 		pheno->pval.push_back(pval_buf);
 		pheno->n.push_back(n_buf);
+		pheno->n_case.push_back(nc_buf);
 
 		// Calculate variance of phenotype
 		h = 2.0 * pheno->freq[count] * (1.0 - pheno->freq[count]);
-		Vp = h * pheno->n[count] * pow(pheno->se[count], 2) + h * pow(pheno->beta[count], 2) * pheno->n[count] / (pheno->n[count] - 1.0);
+		Vp = h * pheno->n[count] * pheno->se[count] * pheno->se[count] + h * pheno->beta[count] * pheno->beta[count] * pheno->n[count] / (pheno->n[count] - 1.0);
 		if (Vp < 0.0) {
-			throw ("Error in reading phenotype file \"" + filename + "\": variance is less than zero.");
+			ShowError("Error in reading phenotype file \"" + filename + "\": variance is less than zero.");
 		}
-		pheno->Vp_v.push_back(Vp);
 		pheno->Vp_v.push_back(Vp);
 
 		count++;
@@ -163,6 +175,19 @@ void phenotype::read_phenofile(phenotype *pheno, string filename)
 
 	cout << "Read a total of: " << pheno->snp_name.size() << " lines in phenotype file \"" << filename << "\"." << endl;
 	cout << "Phenotypic variance estimated from summary statistcs of all SNPs: " << pheno_variance << "." << endl;
+}
+
+/*
+ * Force calculates the Phenotypic variance
+ */
+void phenotype::calc_variance()
+{
+	vector<double> Vp_temp;
+	for (auto &i : matched_idx) {
+		Vp_temp.push_back(Vp_v[i]);
+	}
+	pheno_variance = v_calc_median(Vp_temp);
+	cout << "New phenotypic variances estimated from SNPs included in analysis is: " << pheno_variance << "." << endl;
 }
 
 /*
@@ -203,7 +228,8 @@ void reference::reference_clear()
 void reference::read_bimfile(string bimfile, phenotype *pheno)
 {
 	string line;
-	int count = 0, i;
+	int count = 0;
+	size_t i;
 	vector<string>::iterator iter;
 
 	// Temporary containers
@@ -219,11 +245,37 @@ void reference::read_bimfile(string bimfile, phenotype *pheno)
 
 	// Prepare for bim reading
 	ifstream bim(bimfile.c_str());
-	if (!bim) {
+	if (bim.fail()) {
 		throw ("IO Error: bim file cannot be opened for reading: " + bimfile + ".");
 	}
 	cout << "Reading data from bim file: " + bimfile + "." << endl;
 	bim_clear();
+
+	/*
+	while (bim.good()) {
+		bim >> bim_chr_buf;
+		bim_chr.push_back(bim_chr_buf);
+
+		bim >> bim_snp_name_buf;
+		bim_snp_name.push_back(bim_snp_name_buf);
+
+		bim >> bim_genet_dst_buf;
+		bim_genet_dst.push_back(bim_genet_dst_buf);
+
+		bim >> bim_bp_buf;
+		bim_bp.push_back(bim_bp_buf);
+		
+		bim >> bim_allele1_buf;
+		transform(bim_allele1_buf.begin(), bim_allele1_buf.end(), bim_allele1_buf.begin(), ::toupper);
+		bim_allele1.push_back(bim_allele1_buf);
+
+		bim >> bim_allele2_buf;
+		transform(bim_allele2_buf.begin(), bim_allele2_buf.end(), bim_allele2_buf.begin(), ::toupper);
+		bim_allele2.push_back(bim_allele2_buf);
+
+	}
+	bim.close();
+	*/
 
 	// Iterate through bim file and save data
 	while (getline(bim, line)) {
@@ -256,10 +308,10 @@ void reference::read_bimfile(string bimfile, phenotype *pheno)
 				bim_bp_buf = stoi(substr);
 				break;
 			case 4: // Fifth column contains allele 1
-				bim_allele1_buf = substr;
+				bim_allele1_buf = string2upper(substr);
 				break;
 			case 5: // Sixth column contains allele 2
-				bim_allele2_buf = substr;
+				bim_allele2_buf = string2upper(substr);
 				break;
 			}
 			count++;
@@ -279,8 +331,12 @@ void reference::read_bimfile(string bimfile, phenotype *pheno)
 		if (iter == pheno->snp_name.end())
 			continue;
 		i = iter - pheno->snp_name.begin();
+		//if (find(pheno->matched_idx.begin(), pheno->matched_idx.end(), i) == pheno->matched_idx.end()) // Matched SNPs between the two datasets ONLY!
+		//	continue;
+
 		if (bim_allele1_buf != pheno->allele1[i]
-			&& bim_allele2_buf != pheno->allele2[i])
+			&& bim_allele2_buf != pheno->allele1[i]
+			)
 		{
 			bad_snp.push_back(bim_snp_name_buf);
 			bad_allele1.push_back(bim_allele1_buf);
@@ -301,7 +357,6 @@ void reference::read_bimfile(string bimfile, phenotype *pheno)
 	bim.close();
 
 	// Report on reading
-	// First bad SNPs so we can free that memory
 	if (!bad_snp.empty()) {
 		string badname = a_out + ".badsnps";
 		ofstream badfile(badname.c_str());
@@ -312,11 +367,6 @@ void reference::read_bimfile(string bimfile, phenotype *pheno)
 		}
 		badfile.close();
 		cout << "Warning: a number of SNPs from the phenotype file could not be matched to the refrence GWAS data. These SNPs are saved in \"" + badname + "\"." << endl;
-
-		vector<string>().swap(bad_snp);
-		vector<string>().swap(bad_allele1);
-		vector<string>().swap(bad_allele2);
-		vector<string>().swap(bad_refA);
 	}
 
 	num_snps = bim_chr.size();
@@ -324,7 +374,6 @@ void reference::read_bimfile(string bimfile, phenotype *pheno)
 	other_A = bim_allele2;
 
 	cout << "Number of SNPs read from .bim file: " << num_snps << "." << endl;
-
 	sanitise_list();
 }
 
@@ -347,9 +396,9 @@ void reference::bim_clear() {
  */
 void reference::sanitise_list()
 {
-	int i;
+	size_t i;
 
-	to_include.clear(); // These to_includes here were commented out - can they remain like this??????
+	to_include.clear();
 	to_include.resize(num_snps);
 	snp_map.clear();
 
@@ -467,12 +516,39 @@ void reference::fam_clear() {
 	fam_pheno.clear();
 }
 
+void reference::filter_snp_maf(double maf)
+{
+	map<string, int> id_map(snp_map);
+	map<string, int>::iterator it, end = id_map.end();
+	size_t prev_size = to_include.size();
+	double f_temp = 0.0;
+
+	cout << "Filtering SNPs with MAF > " << maf << "." << endl;
+
+	to_include.clear();
+	snp_map.clear();
+
+	for (it = id_map.begin(); it != end; ++it) {
+		f_temp = mu[it->second] * 0.5;
+		if (f_temp <= maf || (1.0 - f_temp) <= maf)
+			continue;
+		snp_map.insert(*it);
+		to_include.push_back(it->second);
+	}
+	
+	if (to_include.size() == 0)
+		ShowError("Data Error: After MAF filtering, no SNPs are retained for the analysis.");
+
+	stable_sort(to_include.begin(), to_include.end());
+	cout << "After filtering based on MAF, there are " << to_include.size() << " SNPs remaining in the analysis (amount removed: " << prev_size - to_include.size() << ")." << endl;
+}
+
 /*
  * Calculates allele frequencies based on .fam data
  */
 void reference::calculate_allele_freq()
 {
-	int i = 0, j = 0;
+	size_t i = 0, j = 0;
 	const size_t fam_ids_size = fam_ids_inc.size(),
 		bim_ids_size = to_include.size();
 
@@ -608,4 +684,57 @@ void reference::read_bedfile(string bedfile)
 	BIT.close();
 
 	cout << "Genotype data for " << fam_size << " individuals and " << bim_size << " SNPs read." << endl;
+}
+
+mdata::mdata(phenotype *ph1, phenotype *ph2)
+{
+	size_t i, n = ph1->snp_name.size();
+	vector<string>::iterator it;
+
+	// Match SNPs
+	for (it = ph1->snp_name.begin(); it != ph1->snp_name.end(); it++) {
+		vector<string>::iterator it2;
+		if ((it2 = find(ph2->snp_name.begin(), ph2->snp_name.end(), *it)) != ph2->snp_name.end()) {
+			snp_map.insert(pair<size_t, size_t>(distance(ph1->snp_name.begin(), it), distance(ph2->snp_name.begin(), it2)));
+			ph1->matched_idx.push_back(distance(ph1->snp_name.begin(), it));
+			ph2->matched_idx.push_back(distance(ph2->snp_name.begin(), it2));
+		}
+	}
+
+	// Extract data we want
+	map<size_t, size_t>::iterator itmap = snp_map.begin();
+	size_t m = snp_map.size();
+	while (itmap != snp_map.end()) {
+		snps1.push_back(ph1->snp_name[itmap->first]);
+		betas1.push_back(ph1->beta[itmap->first]);
+		ses1.push_back(ph1->se[itmap->first]);
+		pvals1.push_back(ph1->pval[itmap->first]);
+		mafs1.push_back(ph1->freq[itmap->first]);
+		ns1.push_back(ph1->n[itmap->first]);
+
+		snps2.push_back(ph2->snp_name[itmap->second]);
+		betas2.push_back(ph2->beta[itmap->second]);
+		ses2.push_back(ph2->se[itmap->second]);
+		pvals2.push_back(ph2->pval[itmap->second]);
+		mafs2.push_back(ph2->freq[itmap->second]);
+		ns2.push_back(ph2->n[itmap->second]);
+
+		itmap++;
+	}
+}
+
+mdata::mdata()
+{
+	snps1.clear();
+	snps2.clear();
+	betas1.clear();
+	betas2.clear();
+	ses1.clear();
+	ses2.clear();
+	pvals1.clear();
+	pvals2.clear();
+	mafs1.clear();
+	mafs2.clear();
+	ns1.clear();
+	ns2.clear();
 }

@@ -31,31 +31,45 @@ typedef SparseMatrix<double> eigenSparseMat;
 typedef DynamicSparseMatrix<double> eigenDynSparseMat;
 #endif
 
+enum cond_type {
+	CO_COND = 0,
+	CO_JOINT,
+};
 
 class cond_analysis {
 public:
-	cond_analysis(double p_cutoff, double collinear, int ld_window, string out, bool verbose, int top_snp);
+	cond_analysis(double p_cutoff, double collinear, double ld_window, string out, bool verbose, double top_snp);
 	cond_analysis();
 
 	void init_conditional(phenotype *pheno, reference *ref);
 	void match_gwas_phenotype(phenotype *pheno, reference *ref);
-	void massoc(cond_analysis *p_analysis);
+	void massoc(reference *ref, string snplist);
 
+	vector<int> read_snplist(string snplist, vector<int> &remain, reference *ref);
 	void makex_eigenVector(int j, eigenVector &x, reference *ref);
 	bool init_b(const vector<int> &idx, reference *ref);
 	void init_z(const vector<int> &idx, reference *ref);
 	bool insert_B_Z(const vector<int> &idx, int pos, reference *ref);
+	void erase_B_and_Z(const vector<int> &idx, int erase, reference *ref);
 	void stepwise_select(vector<int> &selected, vector<int> &remain, eigenVector &bC, eigenVector &bC_se, eigenVector &pC, reference *ref);
 
 	bool select_entry(vector<int> &selected, vector<int> &remain, eigenVector &bC, eigenVector &bC_se, eigenVector &pC, reference *ref);
+	void selected_stay(vector<int> &select, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, reference *ref);
 	void massoc_conditional(const vector<int> &selected, vector<int> &remain, eigenVector &bC, eigenVector &bC_se, eigenVector &pC, reference *ref);
+	void massoc_joint(const vector<int> &idx, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, reference *ref);
 
-	int a_ld_window; // Distance in kb after which SNPs are considered to be in LD
+	double massoc_calcu_Ve(const vector<int> &selected, eigenVector &bJ, eigenVector &b);
+	void LD_rval(const vector<int> &idx, eigenMatrix &rval);
+	void sanitise_output(vector<int> &selected, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, eigenMatrix &rval, enum cond_type ctype, reference *ref);
+
+	double a_ld_window; // Distance in kb after which SNPs are considered to be in LD
+
+	size_t sw_snps; // Amount of SNPs selected after stepwise selection
 
 	// Joint analysis related
-	double jma_Ve; /// What am I?
 	double a_collinear; // Collinearity check between SNPs
 	int jma_snpnum_collinear;
+	int jma_snpnum_backward;
 	eigenVector ja_freq;
 	eigenVector ja_beta;
 	eigenVector ja_beta_se;
@@ -65,6 +79,14 @@ public:
 	eigenVector msx; /// What am I?
 	eigenVector msx_b; /// What am I?
 	eigenVector nD; /// What am I?
+
+	// For coloc
+	vector<string> snps_cond; /// SNP names
+	vector<double> b_cond; /// Beta
+	vector<double> se_cond; /// SE(beta)
+	vector<double> maf_cond; /// Minor allele frequency
+	vector<double> p_cond; /// P values
+	vector<double> n_cond; /// Sample sizes
 
 	eigenSparseMat B;
 	eigenMatrix B_i; // Identity matrix of B
@@ -76,11 +98,13 @@ public:
 
 private:
 	string a_out;
-	int a_top_snp;
+	double a_top_snp;
 	double a_p_cutoff;
 	bool a_verbose;
 	int num_snps;
 
 	// Joint analysis related
-	double jma_Vp; /// What am I?
+	double jma_Ve; /// What am I?
+	double jma_Vp; /// Phenotypic variance
+	double GC_val; /// What am I? TODO
 };

@@ -20,11 +20,17 @@ void ShowWarning(const std::string msg, bool verbose);
 void ShowError(const std::string msg);
 
 bool isFloatEqual(double lhs, double rhs);
+std::string string2upper(const std::string &str);
 double pchisq(double x, double df);
 
 double v_calc_median(std::vector<double> &x);
 std::vector<std::size_t> v_sort_indices(const std::vector<std::string> &v);
 void eigenVector2Vector(Eigen::VectorXd &x, std::vector<double> &y);
+double logsum(const std::vector<double> &x);
+double logdiff(double x, double y);
+
+std::vector<double> lm(const std::vector<double> &x, const std::vector<double> &y);
+std::vector<double> lm_fixed(const std::vector<double> &x, const std::vector<double> &y);
 
 //template<typename KeyType, typename LeftValue, typename RightValue>
 //std::map<KeyType, std::pair<LeftValue, RightValue> > IntersectMaps(const std::map<KeyType, LeftValue> &left, const std::map<KeyType, RightValue> &right);

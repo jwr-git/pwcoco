@@ -9,6 +9,7 @@
 
 #include "data.h"
 #include "conditional.h"
+#include "coloc.h"
 #include "helper_funcs.h"
 
 using namespace std;

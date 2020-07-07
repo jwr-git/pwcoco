@@ -131,6 +131,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="coloc.cpp" />
     <ClCompile Include="conditional.cpp" />
     <ClCompile Include="data.cpp" />
     <ClCompile Include="dcdflib.cpp" />
@@ -138,6 +139,7 @@
     <ClCompile Include="options.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="coloc.h" />
     <ClInclude Include="conditional.h" />
     <ClInclude Include="data.h" />
     <ClInclude Include="dcdflib.h" />

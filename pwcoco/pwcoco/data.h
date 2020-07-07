@@ -2,12 +2,16 @@
 
 #include <algorithm>
 #include <bitset>
+#include <cmath>
 #include <iostream>
 #include <fstream>
 #include <map>
 #include <string>
 #include <sstream>
 #include <vector>
+
+#include <boost/iostreams/device/mapped_file.hpp>
+#include <boost/algorithm/string.hpp>
 
 #include "helper_funcs.h"
 
@@ -20,6 +24,7 @@ public:
 
 	void read_phenofile(phenotype *pheno, string filename);
 	void phenotype_clear(phenotype *pheno);
+	void calc_variance();
 
 	// From phenotype file
 	vector<string> snp_name;
@@ -30,16 +35,37 @@ public:
 	vector<double> se;
 	vector<double> pval;
 	vector<double> n;
+	vector<double> n_case;
 	vector<double> Vp_v;
 	vector<double> mu;
 
 	double pheno_variance; /// Estimated phenotypic variance from summary stats
+
+	vector<size_t> matched_idx; /// Indicies of SNPs that have been matched
 
 private:
 	string pheno_name;
 };
 
 phenotype *init_exposure(string filename, string pheno_name);
+
+class mdata {
+public:
+	mdata(phenotype *ph1, phenotype *ph2);
+	mdata();
+
+	// Data from datasets
+	// These are matched!
+	vector<string> snps1, snps2;
+	vector<double> betas1, betas2;
+	vector<double> ses1, ses2;
+	vector<double> pvals1, pvals2;
+	vector<double> mafs1, mafs2;
+	vector<double> ns1, ns2; // Must these be double? Can they be int?
+
+private:
+	map<size_t, size_t> snp_map; // Positions of SNPs in original datasets
+};
 
 class reference {
 public:
@@ -53,6 +79,7 @@ public:
 	void bim_clear();
 	void fam_clear();
 
+	void filter_snp_maf(double maf);
 	void sanitise_list();
 	void pair_fam();
 	void calculate_allele_freq();
@@ -86,7 +113,7 @@ private:
 	vector<double> bim_genet_dst; /// Distance 
 	// Extra helper info
 	vector<size_t> og_indices; /// Original indices for the SNP names in bim_snp_name - use this to get information of a SNP from the other, unsorted vectors
-	int num_snps; /// Number of SNPs in analysis
+	size_t num_snps; /// Number of SNPs in analysis
 	vector<string> other_A; /// Other allele
 
 	// From .fam file

@@ -30,6 +30,9 @@
     <ClCompile Include="dcdflib.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="coloc.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="options.h">
@@ -45,6 +48,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="dcdflib.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="coloc.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
