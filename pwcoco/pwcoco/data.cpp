@@ -18,7 +18,7 @@ phenotype::phenotype()
 	pheno_variance = 0;
 }
 
-void phenotype::phenotype_clear(phenotype *pheno)
+void phenotype::phenotype_clear()
 {
 	pheno_name = "";
 	pheno_variance = 0;
@@ -51,7 +51,7 @@ void phenotype::phenotype_clear(phenotype *pheno)
 phenotype *init_exposure(string filename, string pheno_name)
 {
 	phenotype *pheno = new phenotype("pheno_name");
-	pheno->read_phenofile(pheno, filename);
+	pheno->read_phenofile(filename);
 
 	return pheno;
 }
@@ -67,7 +67,7 @@ phenotype *init_exposure(string filename, string pheno_name)
  * @param string filename Path to the phenotype file
  * @ret void
  */
-void phenotype::read_phenofile(phenotype *pheno, string filename)
+void phenotype::read_phenofile(string filename)
 {
 	string line;
 	map<string, int>::iterator iter;
@@ -149,38 +149,38 @@ void phenotype::read_phenofile(phenotype *pheno, string filename)
 		}
 
 		// Add SNPs
-		pheno->snp_name.push_back(snp_name_buf);
-		pheno->allele1.push_back(allele1_buf);
-		pheno->allele2.push_back(allele2_buf);
-		pheno->freq.push_back(freq_buf);
-		pheno->beta.push_back(beta_buf);
-		pheno->se.push_back(se_buf);
-		pheno->pval.push_back(pval_buf);
-		pheno->n.push_back(n_buf);
-		pheno->n_case.push_back(nc_buf);
+		snp_name.push_back(snp_name_buf);
+		allele1.push_back(allele1_buf);
+		allele2.push_back(allele2_buf);
+		freq.push_back(freq_buf);
+		beta.push_back(beta_buf);
+		se.push_back(se_buf);
+		pval.push_back(pval_buf);
+		n.push_back(n_buf);
+		n_case.push_back(nc_buf);
 
 		// Calculate variance of phenotype
-		h = 2.0 * pheno->freq[count] * (1.0 - pheno->freq[count]);
-		Vp = h * pheno->n[count] * pheno->se[count] * pheno->se[count] + h * pheno->beta[count] * pheno->beta[count] * pheno->n[count] / (pheno->n[count] - 1.0);
+		h = 2.0 * freq[count] * (1.0 - freq[count]);
+		Vp = h * n[count] * se[count] * se[count] + h * beta[count] * beta[count] * n[count] / (n[count] - 1.0);
 		if (Vp < 0.0) {
 			ShowError("Error in reading phenotype file \"" + filename + "\": variance is less than zero.");
 		}
-		pheno->Vp_v.push_back(Vp);
+		Vp_v.push_back(Vp);
 
 		count++;
 	}
 	pfile.close();
-	pheno_variance = v_calc_median(pheno->Vp_v);
+	pheno_variance = v_calc_median(Vp_v);
 	// If want to adjust P-values, add GC here
 
-	cout << "Read a total of: " << pheno->snp_name.size() << " lines in phenotype file \"" << filename << "\"." << endl;
+	cout << "Read a total of: " << snp_name.size() << " lines in phenotype file \"" << filename << "\"." << endl;
 	cout << "Phenotypic variance estimated from summary statistcs of all SNPs: " << pheno_variance << "." << endl;
 }
 
 /*
  * Force calculates the Phenotypic variance
  */
-void phenotype::calc_variance()
+double phenotype::calc_variance()
 {
 	vector<double> Vp_temp;
 	for (auto &i : matched_idx) {
@@ -188,6 +188,7 @@ void phenotype::calc_variance()
 	}
 	pheno_variance = v_calc_median(Vp_temp);
 	cout << "New phenotypic variances estimated from SNPs included in analysis is: " << pheno_variance << "." << endl;
+	return pheno_variance;
 }
 
 /*
@@ -489,7 +490,7 @@ void reference::read_famfile(string famfile)
  */
 void reference::pair_fam()
 {
-	int i = 0, size = 0;
+	size_t i = 0, size = 0;
 
 	fam_ids_inc.clear();
 	fam_ids_inc.resize(individuals);
@@ -518,8 +519,8 @@ void reference::fam_clear() {
 
 void reference::filter_snp_maf(double maf)
 {
-	map<string, int> id_map(snp_map);
-	map<string, int>::iterator it, end = id_map.end();
+	map<string, size_t> id_map(snp_map);
+	map<string, size_t>::iterator it, end = id_map.end();
 	size_t prev_size = to_include.size();
 	double f_temp = 0.0;
 
@@ -579,7 +580,7 @@ void reference::get_read_individuals(vector<int> &read_individuals)
 {
 	read_individuals.clear();
 	read_individuals.resize(individuals);
-	for (int i = 0; i < individuals; i++) {
+	for (size_t i = 0; i < individuals; i++) {
 		if (fam_map.find(fam_fid[i] + ":" + fam_iid[i]) != fam_map.end())
 			read_individuals[i] = 1;
 		else
@@ -608,7 +609,7 @@ void reference::get_read_snps(vector<int> &read_snps)
  */
 void reference::read_bedfile(string bedfile)
 {
-	int i, j, k,
+	size_t i, j, k,
 		snp_idx, ind_idx;
 	const size_t bim_size = to_include.size(),
 		fam_size = fam_ids_inc.size();
@@ -688,7 +689,7 @@ void reference::read_bedfile(string bedfile)
 
 mdata::mdata(phenotype *ph1, phenotype *ph2)
 {
-	size_t i, n = ph1->snp_name.size();
+	size_t n = ph1->snp_name.size();
 	vector<string>::iterator it;
 
 	// Match SNPs

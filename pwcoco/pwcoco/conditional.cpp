@@ -47,8 +47,7 @@ void cond_analysis::init_conditional(phenotype *pheno, reference *ref)
 	// First match the datasets
 	match_gwas_phenotype(pheno, ref);
 	// Re-caculate variance after matching to reference
-	pheno->calc_variance();
-	jma_Vp = pheno->pheno_variance;
+	jma_Vp = pheno->calc_variance();
 
 	n = ref->to_include.size();
 	m = ref->fam_ids_inc.size();
@@ -79,10 +78,10 @@ void cond_analysis::init_conditional(phenotype *pheno, reference *ref)
 void cond_analysis::match_gwas_phenotype(phenotype *pheno, reference *ref)
 {
 	size_t i = 0;
-	map<string, int> snp_map_buffer(ref->snp_map);
+	map<string, size_t> snp_map_buffer(ref->snp_map);
 	//map<size_t, size_t> bim_pheno; // Map of positions of SNPs in reference and phenotype, respectively
-	map<string, int>::iterator iter;
-	map<string, int> id_map;
+	map<string, size_t>::iterator iter;
+	map<string, size_t> id_map;
 
 	// Match the pre-matched SNPs from the exposure/outcome datasets to the reference dataset
 	for (i = 0; i < pheno->matched_idx.size(); i++) {
@@ -99,31 +98,11 @@ void cond_analysis::match_gwas_phenotype(phenotype *pheno, reference *ref)
 	}
 	stable_sort(ref->to_include.begin(), ref->to_include.end());
 
-	// Debug
-	if (true) {
-		string filename = "D:/Users/Jamie/Desktop/debug.txt";
-		ofstream ofile(filename.c_str());
-		size_t st;
-
-		if (!ofile)
-			ShowError("Cannot open file \"" + filename + "\" for writing.");
-
-		// Header
-		cout << "Ref SNP\tPheno SNP" << endl;
-		ofile << "Ref SNP\tPheno SNP" << endl;
-		for (st = 0; st < pheno->snp_name.size(); st++) {
-			if (ref->snp_map[pheno->snp_name[st]] == 0)
-				continue;
-			cout << ref->bim_snp_name[ref->snp_map[pheno->snp_name[st]]] << "\t" << ref->snp_map[pheno->snp_name[st]] << "\t" << pheno->snp_name[st] << endl;
-			ofile << ref->bim_snp_name[ref->snp_map[pheno->snp_name[st]]] << "\t" << ref->snp_map[pheno->snp_name[st]] << "\t" << pheno->snp_name[st] << endl;
-		}
-	}
-
 	// Use the matched SNPs to find alleles and calculate mu
-	vector<int> idx(ref->to_include.size());
+	vector<size_t> idx(ref->to_include.size());
 
 	for (i = 0; i < pheno->snp_name.size(); i++)
-		id_map.insert(pair<string, int>(pheno->snp_name[i], i));
+		id_map.insert(pair<string, size_t>(pheno->snp_name[i], i));
 
 	for (i = 0; i < ref->to_include.size(); i++) {
 		iter = id_map.find(ref->bim_snp_name[ref->to_include[i]]);
@@ -157,7 +136,7 @@ void cond_analysis::match_gwas_phenotype(phenotype *pheno, reference *ref)
 	}
 }
 
-void cond_analysis::stepwise_select(vector<int> &selected, vector<int> &remain, eigenVector &bC, eigenVector &bC_se, eigenVector &pC, reference *ref)
+void cond_analysis::stepwise_select(vector<size_t> &selected, vector<size_t> &remain, eigenVector &bC, eigenVector &bC_se, eigenVector &pC, reference *ref)
 {
 	vector<double> p_temp;
 	eigenVector2Vector(ja_pval, p_temp);
@@ -201,14 +180,14 @@ void cond_analysis::stepwise_select(vector<int> &selected, vector<int> &remain, 
 	cout << "Finally, " << selected.size() << " associated SNPs have been selected." << endl;
 }
 
-bool cond_analysis::insert_B_Z(const vector<int> &idx, int pos, reference *ref)
+bool cond_analysis::insert_B_Z(const vector<size_t> &idx, size_t pos, reference *ref)
 {
 	bool get_ins_col = false, get_ins_row = false;
-	int i = 0, j = 0, p,
+	size_t i = 0, j = 0, p,
 		n = ref->fam_ids_inc.size(),
 		m = ref->to_include.size();
 	double d_temp = 0.0;
-	vector<int> ix(idx);
+	vector<size_t> ix(idx);
 	eigenSparseMat B_temp(B), B_N_temp(B_N);
 
 	ix.push_back(pos);
@@ -326,10 +305,10 @@ bool cond_analysis::insert_B_Z(const vector<int> &idx, int pos, reference *ref)
 	return true;
 }
 
-void cond_analysis::erase_B_and_Z(const vector<int> &idx, int erase, reference *ref)
+void cond_analysis::erase_B_and_Z(const vector<size_t> &idx, size_t erase, reference *ref)
 {
 	bool get_ins_col = false, get_ins_row = false;
-	int i = 0, j = 0,
+	size_t i = 0, j = 0,
 		i_size = idx.size(),
 		pos = find(idx.begin(), idx.end(), erase) - idx.begin(),
 		m = ref->to_include.size();
@@ -398,7 +377,7 @@ void cond_analysis::erase_B_and_Z(const vector<int> &idx, int erase, reference *
 	Z_N.finalize();
 }
 
-bool cond_analysis::select_entry(vector<int> &selected, vector<int> &remain, eigenVector &bC, eigenVector &bC_se, eigenVector &pC, reference *ref)
+bool cond_analysis::select_entry(vector<size_t> &selected, vector<size_t> &remain, eigenVector &bC, eigenVector &bC_se, eigenVector &pC, reference *ref)
 {
 	size_t m = 0;
 	vector<double> pC_temp;
@@ -424,7 +403,7 @@ bool cond_analysis::select_entry(vector<int> &selected, vector<int> &remain, eig
 	}
 }
 
-void cond_analysis::selected_stay(vector<int> &select, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, reference *ref)
+void cond_analysis::selected_stay(vector<size_t> &select, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, reference *ref)
 {
 	if (B_N.cols() < 1) {
 		if (!init_b(select, ref)) {
@@ -448,9 +427,9 @@ void cond_analysis::selected_stay(vector<int> &select, eigenVector &bJ, eigenVec
 	}
 }
 
-void cond_analysis::massoc_conditional(const vector<int> &selected, vector<int> &remain, eigenVector &bC, eigenVector &bC_se, eigenVector &pC, reference *ref)
+void cond_analysis::massoc_conditional(const vector<size_t> &selected, vector<size_t> &remain, eigenVector &bC, eigenVector &bC_se, eigenVector &pC, reference *ref)
 {
-	int i = 0, j = 0, n = selected.size(), m = remain.size();
+	size_t i = 0, j = 0, n = selected.size(), m = remain.size();
 	double chisq = 0.0, B2 = 0.0;
 	eigenVector b(n), se(n);
 
@@ -497,7 +476,7 @@ void cond_analysis::massoc_conditional(const vector<int> &selected, vector<int> 
 	}
 }
 
-double cond_analysis::massoc_calcu_Ve(const vector<int> &selected, eigenVector &bJ, eigenVector &b)
+double cond_analysis::massoc_calcu_Ve(const vector<size_t> &selected, eigenVector &bJ, eigenVector &b)
 {
 	double Ve = 0.0, d_temp = 0.0;
 	size_t n = bJ.size();
@@ -519,7 +498,7 @@ double cond_analysis::massoc_calcu_Ve(const vector<int> &selected, eigenVector &
 	return Ve;
 }
 
-void cond_analysis::makex_eigenVector(int j, eigenVector &x, reference *ref)
+void cond_analysis::makex_eigenVector(size_t j, eigenVector &x, reference *ref)
 {
 	size_t i = 0,
 		n = ref->fam_ids_inc.size(),
@@ -541,9 +520,9 @@ void cond_analysis::makex_eigenVector(int j, eigenVector &x, reference *ref)
 	}
 }
 
-bool cond_analysis::init_b(const vector<int> &idx, reference *ref)
+bool cond_analysis::init_b(const vector<size_t> &idx, reference *ref)
 {
-	int i = 0, j = 0, k = 0,
+	size_t i = 0, j = 0, k = 0,
 		n = ref->fam_ids_inc.size(),
 		i_size = idx.size();
 	double d_temp = 0.0;
@@ -598,9 +577,9 @@ bool cond_analysis::init_b(const vector<int> &idx, reference *ref)
 	return true;
 }
 
-void cond_analysis::init_z(const vector<int> &idx, reference *ref)
+void cond_analysis::init_z(const vector<size_t> &idx, reference *ref)
 {
-	int i = 0, j = 0,
+	size_t i = 0, j = 0,
 		n = ref->fam_ids_inc.size(),
 		m = ref->to_include.size(),
 		i_size = idx.size();
@@ -634,9 +613,9 @@ void cond_analysis::init_z(const vector<int> &idx, reference *ref)
 	Z_N.finalize();
 }
 
-void cond_analysis::massoc_joint(const vector<int> &idx, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, reference *ref)
+void cond_analysis::massoc_joint(const vector<size_t> &idx, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, reference *ref)
 {
-	int i = 0, n = idx.size();
+	size_t i = 0, n = idx.size();
 	double chisq = 0.0;
 	eigenVector b(n);
 	for (i = 0; i < n; i++)
@@ -672,11 +651,11 @@ void cond_analysis::massoc_joint(const vector<int> &idx, eigenVector &bJ, eigenV
 	}
 }
 
-vector<int> cond_analysis::read_snplist(string snplist, vector<int> &remain, reference *ref)
+vector<size_t> cond_analysis::read_snplist(string snplist, vector<size_t> &remain, reference *ref)
 {
 	size_t i = 0, n = ref->to_include.size();
 	vector<string> givenSNPs;
-	vector<int> pgiven;
+	vector<size_t> pgiven;
 	string temp;
 	ifstream i_snplist(snplist.c_str());
 	
@@ -724,7 +703,7 @@ vector<int> cond_analysis::read_snplist(string snplist, vector<int> &remain, ref
  */
 void cond_analysis::massoc(reference *ref, string snplist)
 {
-	vector<int> selected, remain, pgiven;
+	vector<size_t> selected, remain, pgiven;
 	eigenVector bC, bC_se, pC;
 
 	if (a_top_snp < 0.0)
@@ -753,9 +732,9 @@ void cond_analysis::massoc(reference *ref, string snplist)
 	sanitise_output(selected, bJ, bJ_se, pJ, rval, CO_JOINT, ref);
 }
 
-void cond_analysis::LD_rval(const vector<int> &idx, eigenMatrix &rval)
+void cond_analysis::LD_rval(const vector<size_t> &idx, eigenMatrix &rval)
 {
-	int i = 0, j = 0,
+	size_t i = 0, j = 0,
 		i_size = idx.size();
 	eigenVector sd(i_size);
 
@@ -770,7 +749,7 @@ void cond_analysis::LD_rval(const vector<int> &idx, eigenMatrix &rval)
 	}
 }
 
-void cond_analysis::sanitise_output(vector<int> &selected, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, eigenMatrix &rval, enum cond_type ctype, reference *ref)
+void cond_analysis::sanitise_output(vector<size_t> &selected, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, eigenMatrix &rval, enum cond_type ctype, reference *ref)
 {
 	string filename = a_out + (ctype == CO_COND ? ".cma.cojo" : "jma.cojo");
 	ofstream ofile(filename.c_str());
@@ -792,7 +771,7 @@ void cond_analysis::sanitise_output(vector<int> &selected, eigenVector &bJ, eige
 			snps_cond.push_back(ref->bim_snp_name[ref->to_include[j]]);
 		ofile << ref->bim_chr[ref->to_include[j]] << "\t" << ref->bim_snp_name[ref->to_include[j]] << "\t" << ref->bim_bp[ref->to_include[j]] << "\t";
 		ofile << ref->ref_A[ref->to_include[j]] << "\t" << ja_freq[j] << "\t" << ja_beta[j] << "\t" << ja_beta_se[j] << "\t";
-		ofile << ja_pval[j] << "\t" << nD[j] << "\t" << 0.5 * ref->mu[ref->to_include[j]];
+		ofile << ja_pval[j] << "\t" << nD[j] << "\t" << 0.5 * ref->mu[ref->to_include[j]] << "\t";
 
 		if (ctype == CO_COND) {
 			if (pJ[i] > 1.5)
@@ -801,7 +780,7 @@ void cond_analysis::sanitise_output(vector<int> &selected, eigenVector &bJ, eige
 				ofile << bJ[i] << "\t" << bJ_se[i] << "\t" << pJ[i] << endl;
 		}
 		else {
-			ofile << bJ[i] << "\t" << bJ_se[i] << "\t" << pJ[i] << endl;
+			ofile << bJ[i] << "\t" << bJ_se[i] << "\t" << pJ[i];
 			if (i == selected.size() - 1)
 				ofile << 0 << endl;
 			else

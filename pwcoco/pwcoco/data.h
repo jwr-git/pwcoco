@@ -22,9 +22,9 @@ public:
 	phenotype(string name);
 	phenotype();
 
-	void read_phenofile(phenotype *pheno, string filename);
-	void phenotype_clear(phenotype *pheno);
-	void calc_variance();
+	void read_phenofile(string filename);
+	void phenotype_clear();
+	double calc_variance();
 
 	// From phenotype file
 	vector<string> snp_name;
@@ -39,12 +39,11 @@ public:
 	vector<double> Vp_v;
 	vector<double> mu;
 
-	double pheno_variance; /// Estimated phenotypic variance from summary stats
-
 	vector<size_t> matched_idx; /// Indicies of SNPs that have been matched
 
 private:
 	string pheno_name;
+	double pheno_variance; /// Estimated phenotypic variance from summary stats
 };
 
 phenotype *init_exposure(string filename, string pheno_name);
@@ -89,15 +88,15 @@ public:
 	// From .bim
 	vector<string> bim_snp_name; /// SNP names
 	vector<string> ref_A; /// Reference allele
-	vector<int> to_include; /// SNP list to include in analysis after sanitising
-	map<string, int> snp_map; /// Maps rsID/SNP identifer to vector position
+	vector<size_t> to_include; /// SNP list to include in analysis after sanitising
+	map<string, size_t> snp_map; /// Maps rsID/SNP identifer to vector position
 	vector<string> bim_allele1; /// A1
 	vector<string> bim_allele2; /// A2
 	vector<int> bim_chr; /// Chromosome
 	vector<int> bim_bp; /// BP position
 
 	// From .fam
-	vector<int> fam_ids_inc; /// Family IDs that are included in the analysis
+	vector<size_t> fam_ids_inc; /// Family IDs that are included in the analysis
 	vector<double> mu; /// Calculated allele frequencies using fam data
 
 	// From .bed file
@@ -123,6 +122,6 @@ private:
 	vector<string> fam_mo_id; /// Mother ID
 	vector<unsigned short> fam_sex; /// Sex '1' = male, '2' = female, '0' = unknown
 	vector<unsigned short> fam_pheno; /// Phenotype value '1' = control, '2' = case, '-9'/'0'/non-numeric = missing data if case/control
-	unsigned int individuals; /// Number of individuals read from the .fam file
+	size_t individuals; /// Number of individuals read from the .fam file
 	map<string, int> fam_map; /// Mapping between FIDs and IIDs
 };

@@ -45,22 +45,22 @@ public:
 	void match_gwas_phenotype(phenotype *pheno, reference *ref);
 	void massoc(reference *ref, string snplist);
 
-	vector<int> read_snplist(string snplist, vector<int> &remain, reference *ref);
-	void makex_eigenVector(int j, eigenVector &x, reference *ref);
-	bool init_b(const vector<int> &idx, reference *ref);
-	void init_z(const vector<int> &idx, reference *ref);
-	bool insert_B_Z(const vector<int> &idx, int pos, reference *ref);
-	void erase_B_and_Z(const vector<int> &idx, int erase, reference *ref);
-	void stepwise_select(vector<int> &selected, vector<int> &remain, eigenVector &bC, eigenVector &bC_se, eigenVector &pC, reference *ref);
+	vector<size_t> read_snplist(string snplist, vector<size_t> &remain, reference *ref);
+	void makex_eigenVector(size_t j, eigenVector &x, reference *ref);
+	bool init_b(const vector<size_t> &idx, reference *ref);
+	void init_z(const vector<size_t> &idx, reference *ref);
+	bool insert_B_Z(const vector<size_t> &idx, size_t pos, reference *ref);
+	void erase_B_and_Z(const vector<size_t> &idx, size_t erase, reference *ref);
+	void stepwise_select(vector<size_t> &selected, vector<size_t> &remain, eigenVector &bC, eigenVector &bC_se, eigenVector &pC, reference *ref);
 
-	bool select_entry(vector<int> &selected, vector<int> &remain, eigenVector &bC, eigenVector &bC_se, eigenVector &pC, reference *ref);
-	void selected_stay(vector<int> &select, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, reference *ref);
-	void massoc_conditional(const vector<int> &selected, vector<int> &remain, eigenVector &bC, eigenVector &bC_se, eigenVector &pC, reference *ref);
-	void massoc_joint(const vector<int> &idx, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, reference *ref);
+	bool select_entry(vector<size_t> &selected, vector<size_t> &remain, eigenVector &bC, eigenVector &bC_se, eigenVector &pC, reference *ref);
+	void selected_stay(vector<size_t> &select, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, reference *ref);
+	void massoc_conditional(const vector<size_t> &selected, vector<size_t> &remain, eigenVector &bC, eigenVector &bC_se, eigenVector &pC, reference *ref);
+	void massoc_joint(const vector<size_t> &idx, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, reference *ref);
 
-	double massoc_calcu_Ve(const vector<int> &selected, eigenVector &bJ, eigenVector &b);
-	void LD_rval(const vector<int> &idx, eigenMatrix &rval);
-	void sanitise_output(vector<int> &selected, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, eigenMatrix &rval, enum cond_type ctype, reference *ref);
+	double massoc_calcu_Ve(const vector<size_t> &selected, eigenVector &bJ, eigenVector &b);
+	void LD_rval(const vector<size_t> &idx, eigenMatrix &rval);
+	void sanitise_output(vector<size_t> &selected, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, eigenMatrix &rval, enum cond_type ctype, reference *ref);
 
 	double a_ld_window; // Distance in kb after which SNPs are considered to be in LD
 
