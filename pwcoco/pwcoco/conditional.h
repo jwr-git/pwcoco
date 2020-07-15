@@ -38,7 +38,7 @@ enum cond_type {
 
 class cond_analysis {
 public:
-	cond_analysis(double p_cutoff, double collinear, double ld_window, string out, bool verbose, double top_snp);
+	cond_analysis(double p_cutoff, double collinear, double ld_window, string out, bool verbose, double top_snp, bool actual_geno, double freq_thres);
 	cond_analysis();
 
 	void init_conditional(phenotype *pheno, reference *ref);
@@ -46,7 +46,7 @@ public:
 	void massoc(reference *ref, string snplist);
 
 	vector<size_t> read_snplist(string snplist, vector<size_t> &remain, reference *ref);
-	void makex_eigenVector(size_t j, eigenVector &x, reference *ref);
+	void makex_eigenVector(size_t j, eigenVector &x, bool resize, reference *ref);
 	bool init_b(const vector<size_t> &idx, reference *ref);
 	void init_z(const vector<size_t> &idx, reference *ref);
 	bool insert_B_Z(const vector<size_t> &idx, size_t pos, reference *ref);
@@ -60,7 +60,7 @@ public:
 
 	double massoc_calcu_Ve(const vector<size_t> &selected, eigenVector &bJ, eigenVector &b);
 	void LD_rval(const vector<size_t> &idx, eigenMatrix &rval);
-	void sanitise_output(vector<size_t> &selected, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, eigenMatrix &rval, enum cond_type ctype, reference *ref);
+	void sanitise_output(vector<size_t> &selected, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, eigenMatrix &rval, cond_type ctype, reference *ref);
 
 	double a_ld_window; // Distance in kb after which SNPs are considered to be in LD
 
@@ -101,6 +101,8 @@ private:
 	double a_top_snp;
 	double a_p_cutoff;
 	bool a_verbose;
+	bool a_actual_geno;
+	double a_freq_threshold;
 	int num_snps;
 
 	// Joint analysis related

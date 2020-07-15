@@ -252,9 +252,11 @@ void reference::read_bimfile(string bimfile, phenotype *pheno)
 	cout << "Reading data from bim file: " + bimfile + "." << endl;
 	bim_clear();
 
-	/*
+	
 	while (bim.good()) {
 		bim >> bim_chr_buf;
+		if (bim.eof())
+			break;
 		bim_chr.push_back(bim_chr_buf);
 
 		bim >> bim_snp_name_buf;
@@ -276,8 +278,8 @@ void reference::read_bimfile(string bimfile, phenotype *pheno)
 
 	}
 	bim.close();
-	*/
-
+	
+	/*
 	// Iterate through bim file and save data
 	while (getline(bim, line)) {
 		istringstream ss(line);
@@ -369,11 +371,11 @@ void reference::read_bimfile(string bimfile, phenotype *pheno)
 		badfile.close();
 		cout << "Warning: a number of SNPs from the phenotype file could not be matched to the refrence GWAS data. These SNPs are saved in \"" + badname + "\"." << endl;
 	}
-
+	*/
 	num_snps = bim_chr.size();
 	ref_A = bim_allele1;
 	other_A = bim_allele2;
-
+	
 	cout << "Number of SNPs read from .bim file: " << num_snps << "." << endl;
 	sanitise_list();
 }
@@ -418,7 +420,7 @@ void reference::sanitise_list()
 		else
 			ss << bim_snp_name[i];
 
-		snp_map.insert(pair<string, int>(ss.str(), i));
+		snp_map.insert(pair<string, size_t>(ss.str(), i));
 	}
 }
 
@@ -563,11 +565,13 @@ void reference::calculate_allele_freq()
 
 		for (j = 0; j < fam_ids_size; j++) {
 			if (!bed_snp_1[to_include[i]][fam_ids_inc[j]] || bed_snp_2[to_include[i]][fam_ids_inc[j]]) {
-				f_buf = bed_snp_1[to_include[i]][fam_ids_inc[j]] + bed_snp_2[to_include[i]][fam_ids_inc[j]];
+				double snp1 = bed_snp_1[to_include[i]][fam_ids_inc[j]] ? 1.0 : 0.0,
+					snp2 = bed_snp_2[to_include[i]][fam_ids_inc[j]] ? 1.0 : 0.0;
+				f_buf = snp1 + snp2;
 				if (bim_allele2[to_include[i]] == ref_A[to_include[i]])
 					f_buf = 2.0 - f_buf;
 				mu[to_include[i]] += f_buf;
-				fcount += 1;
+				fcount += 1.0;
 			}
 		}
 
@@ -646,8 +650,8 @@ void reference::read_bedfile(string bedfile)
 	for (i = 0, snp_idx = 0; i < num_snps; i++) {
 		// 00: homozygote AA
 		// 11: homozygote BB
-		// 01: heterozygote
-		// 10: missing
+		// 01: missing
+		// 10: heterozygous
 		
 		// SNP not found
 		if (read_snps[i] == 0) {
@@ -660,7 +664,7 @@ void reference::read_bedfile(string bedfile)
 		for (j = 0, ind_idx = 0; j < individuals;) {
 			BIT.read(ch, 1);
 			if (!BIT)
-				throw ("Cannot read the .bed file?");
+				ShowError("Cannot read the .bed file?");
 
 			b = ch[0];
 			k = 0;
@@ -685,6 +689,70 @@ void reference::read_bedfile(string bedfile)
 	BIT.close();
 
 	cout << "Genotype data for " << fam_size << " individuals and " << bim_size << " SNPs read." << endl;
+}
+
+void reference::read_bimfile_asbinary(string bedfile)
+{
+	size_t i, j, k,
+		snp_idx, ind_idx;
+	const size_t bim_size = to_include.size(),
+		fam_size = fam_ids_inc.size();
+	vector<int> read_individuals, read_snps;
+
+	char ch[1];
+	bitset<8> b;
+	fstream bed(bedfile.c_str(), ios::in | ios::binary);
+
+	get_read_individuals(read_individuals);
+	get_read_snps(read_snps);
+
+	if (!bim_size || !fam_size) {
+		ShowError("No data from either .bim or .fam files to continue with.");
+		return;
+	}
+
+	if (!bed) {
+		ShowError("Cannot open " + bedfile + " to read.");
+		return;
+	}
+
+	bed_snp_1.resize(bim_size);
+	bed_snp_2.resize(bim_size);
+	for (i = 0; i < bim_size; i++) {
+		bed_snp_1[i].resize(fam_size);
+		bed_snp_2[i].resize(fam_size);
+	}
+
+	// Read .bed file
+	int N = (int)ceil(fam_size / 4); // # of sample bytes
+	bed.ignore(3); // Ignore first three bytes as these are the header
+	for (i = 0; i < bim_size; i++) {
+		;
+	}
+}
+
+/*
+ * Updates the inclusion list of SNPs based on an index-based vector.
+ */
+void reference::update_inclusion(const vector<size_t> idx, const vector<string> snps)
+{
+	size_t i, n = idx.size();
+	map<string, size_t> snp_map_buffer(snp_map);
+	map<string, size_t>::iterator iter;
+
+	for (i = 0; i < n; i++) {
+		snp_map_buffer.erase(snps[i]);
+	}
+
+	for (iter = snp_map_buffer.begin(); iter != snp_map_buffer.end(); iter++) {
+		snp_map.erase(iter->first);
+	}
+
+	to_include.clear();
+	for (iter = snp_map.begin(); iter != snp_map.end(); iter++) {
+		to_include.push_back(iter->second);
+	}
+	stable_sort(to_include.begin(), to_include.end());
 }
 
 mdata::mdata(phenotype *ph1, phenotype *ph2)

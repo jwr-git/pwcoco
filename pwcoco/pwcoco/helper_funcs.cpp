@@ -72,18 +72,17 @@ double pchisq(double x, double df)
  * @param vector<double> &x Vector whose median is required
  * @ret double Median value
  */
-double v_calc_median(std::vector<double> &x)
+double v_calc_median(const std::vector<double> &x)
 {
-	size_t size = x.size();
-	if (size == 0)
-		return 0;
-	else {
-		std::sort(x.begin(), x.end());
-		if (size % 2 == 0)
-			return (x[size / 2 - 1] + x[size / 2]) / 2;
-		else
-			return x[size / 2];
-	}
+	std::vector<double> b(x);
+	size_t size = b.size();
+	if (size == 1)
+		return b[0];
+	std::stable_sort(b.begin(), b.end());
+	if (size % 2 == 0)
+		return (b[size / 2 - 1] + b[size / 2]) / 2;
+	else
+		return b[(size - 1) / 2];
 }
 
 std::vector<std::size_t> v_sort_indices(const std::vector<std::string> &v)

@@ -75,6 +75,7 @@ public:
 	void read_bimfile(string bimfile, phenotype *pheno);
 	void read_famfile(string famfile);
 	void read_bedfile(string bedfile);
+	void read_bimfile_asbinary(string bedfile);
 	void bim_clear();
 	void fam_clear();
 
@@ -84,6 +85,7 @@ public:
 	void calculate_allele_freq();
 	void get_read_individuals(vector<int> &read_individuals);
 	void get_read_snps(vector<int> &read_snps);
+	void update_inclusion(const vector<size_t> idx, const vector<string> snps);
 
 	// From .bim
 	vector<string> bim_snp_name; /// SNP names

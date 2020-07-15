@@ -3,13 +3,15 @@
 /*
  * cond_analysis constructor
  */
-cond_analysis::cond_analysis(double p_cutoff, double collinear, double ld_window, string out, bool verbose, double top_snp)
+cond_analysis::cond_analysis(double p_cutoff, double collinear, double ld_window, string out, bool verbose, double top_snp, bool actual_geno, double freq_thres)
 {
 	a_out = out;
 	a_p_cutoff = p_cutoff;
 	a_collinear = collinear;
 	a_ld_window = ld_window;
 	a_verbose = verbose;
+	a_actual_geno = actual_geno;
+	a_freq_threshold = freq_thres;
 
 	a_top_snp = (top_snp < 0 ? 1e30 : top_snp);
 
@@ -27,6 +29,8 @@ cond_analysis::cond_analysis()
 	a_collinear = 0.9;
 	a_ld_window = 1e7;
 	a_verbose = true;
+	a_actual_geno = false;
+	a_freq_threshold = 0.2;
 
 	a_top_snp = -1;
 
@@ -47,7 +51,7 @@ void cond_analysis::init_conditional(phenotype *pheno, reference *ref)
 	// First match the datasets
 	match_gwas_phenotype(pheno, ref);
 	// Re-caculate variance after matching to reference
-	jma_Vp = pheno->calc_variance();
+	jma_Vp = jma_Ve = pheno->calc_variance();
 
 	n = ref->to_include.size();
 	m = ref->fam_ids_inc.size();
@@ -58,16 +62,19 @@ void cond_analysis::init_conditional(phenotype *pheno, reference *ref)
 #pragma omp parallel for
 	for (i = 0; i < n; i++) {
 		eigenVector x;
-		makex_eigenVector(i, x, ref);
+		makex_eigenVector(i, x, true, ref);
 		msx_b[i] = x.squaredNorm() / (double)m;
 	}
 
-	//msx = msx_b;
-	//nD = ja_N_outcome;
-
-	msx = 2.0 * ja_freq.array() * (1.0 - ja_freq.array());
-	for (i = 0; i < n; i++) {
-		nD[i] = (jma_Vp - msx[i] * ja_beta[i] * ja_beta[i]) / (msx[i] * ja_beta_se[i] * ja_beta_se[i]) + 1;
+	if (a_actual_geno) {
+		msx = msx_b;
+		nD = ja_N_outcome;
+	}
+	else {
+		msx = 2.0 * ja_freq.array() * (1.0 - ja_freq.array());
+		for (i = 0; i < n; i++) {
+			nD[i] = (jma_Vp - msx[i] * ja_beta[i] * ja_beta[i]) / (msx[i] * ja_beta_se[i] * ja_beta_se[i]) + 1;
+		}
 	}
 }
 
@@ -78,40 +85,45 @@ void cond_analysis::init_conditional(phenotype *pheno, reference *ref)
 void cond_analysis::match_gwas_phenotype(phenotype *pheno, reference *ref)
 {
 	size_t i = 0;
-	map<string, size_t> snp_map_buffer(ref->snp_map);
-	//map<size_t, size_t> bim_pheno; // Map of positions of SNPs in reference and phenotype, respectively
 	map<string, size_t>::iterator iter;
 	map<string, size_t> id_map;
 
-	// Match the pre-matched SNPs from the exposure/outcome datasets to the reference dataset
-	for (i = 0; i < pheno->matched_idx.size(); i++) {
-		snp_map_buffer.erase(pheno->snp_name[pheno->matched_idx[i]]);
-	}
-
-	for (iter = snp_map_buffer.begin(); iter != snp_map_buffer.end(); iter++) {
-		ref->snp_map.erase(iter->first);
-	}
-
-	ref->to_include.clear();
-	for (iter = ref->snp_map.begin(); iter != ref->snp_map.end(); iter++) {
-		ref->to_include.push_back(iter->second);
-	}
-	stable_sort(ref->to_include.begin(), ref->to_include.end());
+	ref->update_inclusion(pheno->matched_idx, pheno->snp_name);
 
 	// Use the matched SNPs to find alleles and calculate mu
-	vector<size_t> idx(ref->to_include.size());
+	vector<size_t> idx;
+	vector<string> snps;
 
 	for (i = 0; i < pheno->snp_name.size(); i++)
 		id_map.insert(pair<string, size_t>(pheno->snp_name[i], i));
 
+	// Allele matching and swapping
 	for (i = 0; i < ref->to_include.size(); i++) {
+		bool flip_allele = false;
+		cout << "Finding " << ref->bim_snp_name[ref->to_include[i]] << ": " << ref->to_include[i] << endl;
 		iter = id_map.find(ref->bim_snp_name[ref->to_include[i]]);
-		idx[i] = iter->second;
+		cout << "Found! " << iter->first << ": " << iter->second << endl;
 		ref->ref_A[ref->to_include[i]] = pheno->allele1[iter->second];
 
-		if (!ref->mu.empty() && pheno->allele1[iter->second] == ref->bim_allele2[ref->to_include[i]])
+		if (!ref->mu.empty() && pheno->allele1[iter->second] == ref->bim_allele2[ref->to_include[i]]) {
 			ref->mu[ref->to_include[i]] = 2.0 - ref->mu[ref->to_include[i]];
+			flip_allele = true;
+		}
+
+		double cur_freq = ref->mu[ref->to_include[i]] / 2.0;
+		double freq_diff = abs(cur_freq - pheno->freq[iter->second]);
+		cout << "Ref freq vs pheno freq: " << cur_freq << " vs " << pheno->freq[iter->second] << "; " << (freq_diff < a_freq_threshold) << endl;
+		if ((ref->bim_allele1[ref->to_include[i]] == pheno->allele1[iter->second]
+				|| ref->bim_allele2[ref->to_include[i]] == pheno->allele1[iter->second]
+			)
+			&& freq_diff < a_freq_threshold) 
+		{
+			snps.push_back(iter->first);
+			idx.push_back(iter->second);
+		}
 	}
+
+	ref->update_inclusion(idx, snps);
 
 	if (ref->to_include.empty()) {
 		ShowError("Included list of SNPs is empty - could not match SNPs from phenotype file with reference SNPs.");
@@ -207,22 +219,21 @@ bool cond_analysis::insert_B_Z(const vector<size_t> &idx, size_t pos, reference 
 
 		diagB[j] = msx_b[ix[j]];
 		if (pos == ix[j]) {
-			get_ins_col = true;
-			get_ins_row = true;
+			get_ins_col =  get_ins_row = true;
 		}
-		makex_eigenVector(ix[j], x_j, ref);
+		makex_eigenVector(ix[j], x_j, false, ref);
 		
 		for (i = j + 1; i < ix.size(); i++) {
 			if (pos == ix[i])
 				get_ins_row = true;
 
 			if (pos == ix[j] || pos == ix[i]) {
-				if (true // _jma_actual_geno
+				if (a_actual_geno 
 					|| (ref->bim_chr[ref->to_include[ix[i]]] == ref->bim_chr[ref->to_include[ix[j]]]
 						&& abs(ref->bim_bp[ref->to_include[ix[i]]] - ref->bim_bp[ref->to_include[ix[j]]]) < a_ld_window)
 					)
 				{
-					makex_eigenVector(ix[i], x_i, ref);
+					makex_eigenVector(ix[i], x_i, false, ref);
 					d_temp = x_i.dot(x_j) / (double)n;
 					B.insertBack(i, j) = d_temp;
 					B_N.insertBack(i, j) = d_temp
@@ -273,16 +284,16 @@ bool cond_analysis::insert_B_Z(const vector<size_t> &idx, size_t pos, reference 
 		Z_N.startVec(j);
 
 		get_ins_row = false;
-		makex_eigenVector(j, x_j, ref);
+		makex_eigenVector(j, x_j, false, ref);
 		for (i = 0; i < ix.size(); i++) {
 			if (pos == ix[i]) {
-				if (true // _jma_actual_geno
+				if (a_actual_geno 
 					|| (ix[i] != j 
 						&& ref->bim_chr[ref->to_include[ix[i]]] == ref->bim_chr[ref->to_include[j]]
 						&& abs(ref->bim_bp[ref->to_include[ix[i]]] - ref->bim_bp[ref->to_include[j]]) < a_ld_window)
 					)
 				{
-					makex_eigenVector(ix[i], x_i, ref);
+					makex_eigenVector(ix[i], x_i, false, ref);
 					d_temp = x_j.dot(x_i) / (double)n;
 					Z.insertBack(i, j) = d_temp;
 					Z_N.insertBack(i, j) = d_temp
@@ -448,7 +459,8 @@ void cond_analysis::massoc_conditional(const vector<size_t> &selected, vector<si
 		se[i] = ja_beta_se[selected[i]];
 	}
 	eigenVector bJ1 = B_N_i * D_N.asDiagonal() * b;
-	//jma_Ve = massoc_calcu_Ve(selected, bJ1, b);
+	if (a_actual_geno)
+		jma_Ve = massoc_calcu_Ve(selected, bJ1, b);
 
 	eigenVector Z_Bi(n), Z_Bi_temp(n);
 	bC = eigenVector::Zero(m);
@@ -465,7 +477,10 @@ void cond_analysis::massoc_conditional(const vector<size_t> &selected, vector<si
 				bC_se[i] = (B2 - Z_N.col(j).dot(Z_Bi)) / (B2 * B2);
 			}
 		}
-		bC_se[i] *= jma_Ve;
+		if (a_actual_geno)
+			bC_se[i] *= jma_Ve - (B2 * bC[i] * ja_beta[j]) / (nD[j] - n - 1);
+		else
+			bC_se[i] *= jma_Ve;
 		if (bC_se[i] > 1.0e-7) {
 			bC_se[i] = sqrt(bC_se[i]);
 			chisq = bC[i] / bC_se[i];
@@ -498,12 +513,15 @@ double cond_analysis::massoc_calcu_Ve(const vector<size_t> &selected, eigenVecto
 	return Ve;
 }
 
-void cond_analysis::makex_eigenVector(size_t j, eigenVector &x, reference *ref)
+void cond_analysis::makex_eigenVector(size_t j, eigenVector &x, bool resize, reference *ref)
 {
 	size_t i = 0,
 		n = ref->fam_ids_inc.size(),
 		m = ref->to_include.size();
-	x.resize(n);
+
+	if (resize)
+		x.resize(n);
+
 #pragma omp parallel for
 	for (i = 0; i < n; i++) {
 		if (!ref->bed_snp_1[ref->to_include[j]][ref->fam_ids_inc[i]] || ref->bed_snp_2[ref->to_include[j]][ref->fam_ids_inc[i]])
@@ -543,13 +561,15 @@ bool cond_analysis::init_b(const vector<size_t> &idx, reference *ref)
 		B_N.insertBack(i, i) = D_N[i];
 
 		diagB[i] = msx_b[idx[i]];
-		makex_eigenVector(idx[i], x_i, ref);
+		makex_eigenVector(idx[i], x_i, false, ref);
 
 		for (j = i + 1; j < i_size; j++) {
-			if (ref->bim_chr[ref->to_include[idx[i]]] == ref->bim_chr[ref->to_include[idx[j]]]
-				&& abs(ref->bim_bp[ref->to_include[idx[i]]] - ref->bim_bp[ref->to_include[idx[j]]]) < a_ld_window)
+			if (a_actual_geno
+				|| (ref->bim_chr[ref->to_include[idx[i]]] == ref->bim_chr[ref->to_include[idx[j]]]
+					&& abs(ref->bim_bp[ref->to_include[idx[i]]] - ref->bim_bp[ref->to_include[idx[j]]]) < a_ld_window)
+				)
 			{
-				makex_eigenVector(idx[j], x_j, ref);
+				makex_eigenVector(idx[j], x_j, false, ref);
 
 				d_temp = x_i.dot(x_j) / (double)n;
 				B.insertBack(j, i) = d_temp;
@@ -593,12 +613,15 @@ void cond_analysis::init_z(const vector<size_t> &idx, reference *ref)
 		Z.startVec(j);
 		Z_N.startVec(j);
 
-		makex_eigenVector(j, x_j, ref);
+		makex_eigenVector(j, x_j, false, ref);
 		for (i = 0; i < i_size; i++) {
-			if (idx[i] != j && ref->bim_chr[ref->to_include[idx[i]]] == ref->bim_chr[ref->to_include[j]]
-				&& abs(ref->bim_bp[ref->to_include[idx[i]]] - ref->bim_bp[ref->to_include[j]]) < a_ld_window)
+			if (a_actual_geno
+				|| (idx[i] != j 
+					&& ref->bim_chr[ref->to_include[idx[i]]] == ref->bim_chr[ref->to_include[j]]
+					&& abs(ref->bim_bp[ref->to_include[idx[i]]] - ref->bim_bp[ref->to_include[j]]) < a_ld_window)
+				)
 			{
-				makex_eigenVector(idx[i], x_i, ref);
+				makex_eigenVector(idx[i], x_i, false, ref);
 
 				d_temp = x_j.dot(x_i) / (double)n;
 				Z.insertBack(i, j) = d_temp;
@@ -632,6 +655,8 @@ void cond_analysis::massoc_joint(const vector<size_t> &idx, eigenVector &bJ, eig
 	bJ = B_N_i * D_N.asDiagonal() * b;
 	bJ_se = B_N_i.diagonal();
 	pJ = eigenVector::Ones(n);
+	if (a_actual_geno)
+		jma_Ve = massoc_calcu_Ve(idx, bJ, b);
 	bJ_se *= jma_Ve;
 	for (i = 0; i < n; i++) {
 		if (bJ_se[i] > 1.0e-7) {
@@ -728,7 +753,7 @@ void cond_analysis::massoc(reference *ref, string snplist)
 	eigenMatrix rval(selected.size(), selected.size());
 	LD_rval(selected, rval);
 	
-	sanitise_output(selected, bC, bC_se, pC, rval, CO_COND, ref);
+	sanitise_output(remain, bC, bC_se, pC, rval, CO_COND, ref);
 	sanitise_output(selected, bJ, bJ_se, pJ, rval, CO_JOINT, ref);
 }
 
@@ -749,9 +774,9 @@ void cond_analysis::LD_rval(const vector<size_t> &idx, eigenMatrix &rval)
 	}
 }
 
-void cond_analysis::sanitise_output(vector<size_t> &selected, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, eigenMatrix &rval, enum cond_type ctype, reference *ref)
+void cond_analysis::sanitise_output(vector<size_t> &selected, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, eigenMatrix &rval, cond_type ctype, reference *ref)
 {
-	string filename = a_out + (ctype == CO_COND ? ".cma.cojo" : "jma.cojo");
+	string filename = a_out + (ctype == CO_COND ? ".cma.cojo" : ".jma.cojo");
 	ofstream ofile(filename.c_str());
 	size_t i = 0, j = 0;
 	
@@ -780,7 +805,7 @@ void cond_analysis::sanitise_output(vector<size_t> &selected, eigenVector &bJ, e
 				ofile << bJ[i] << "\t" << bJ_se[i] << "\t" << pJ[i] << endl;
 		}
 		else {
-			ofile << bJ[i] << "\t" << bJ_se[i] << "\t" << pJ[i];
+			ofile << bJ[i] << "\t" << bJ_se[i] << "\t" << pJ[i] << "\t";
 			if (i == selected.size() - 1)
 				ofile << 0 << endl;
 			else

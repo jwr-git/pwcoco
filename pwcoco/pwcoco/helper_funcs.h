@@ -23,7 +23,7 @@ bool isFloatEqual(double lhs, double rhs);
 std::string string2upper(const std::string &str);
 double pchisq(double x, double df);
 
-double v_calc_median(std::vector<double> &x);
+double v_calc_median(const std::vector<double> &x);
 std::vector<std::size_t> v_sort_indices(const std::vector<std::string> &v);
 void eigenVector2Vector(Eigen::VectorXd &x, std::vector<double> &y);
 double logsum(const std::vector<double> &x);

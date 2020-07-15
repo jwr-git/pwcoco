@@ -61,12 +61,13 @@ int main(int argc, char* argv[])
 void option(int option_num, char* option_str[])
 {
 	unsigned short chr = 0;
-	int i = 0, ld_window = 1e7, top_snp = -1;
-	double p_cutoff = 5e-8, collinear = 0.9, maf = 0.0;
+	int i = 0, top_snp = -1;
+	double p_cutoff = 5e-8, collinear = 0.9, maf = 0.0, ld_window = 1.0e7,
+		freq_threshold = 0.2;
 	string bfile = "", bim_file = "", fam_file = "", bed_file = "",
 		phen1_file = "", phen2_file = "",
 		out = "", snplist = "";
-	bool verbose = true;
+	bool verbose = true, actual_geno = false;
 
 	/*
 	 * Read through option flags given by user.
@@ -107,7 +108,7 @@ void option(int option_num, char* option_str[])
 			out = option_str[++i];
 		}
 		else if (_strcmpi(option_str[i], "--verbose") == 0) {
-			verbose = (bool)stoi(option_str[++i]);
+			verbose = true;
 		}
 		else if (_strcmpi(option_str[i], "--chr") == 0) {
 			chr = (unsigned short)stoi(option_str[++i]);
@@ -138,6 +139,17 @@ void option(int option_num, char* option_str[])
 			if (maf < 0.0 || maf > 0.5) {
 				cout << "MAF flag should be within the range of (0.0, 0.5). Clipping to be within this range." << endl;
 				maf = (maf < 0.0 ? 0.0 : maf > 0.5 ? 0.5 : maf);
+			}
+		}
+		else if (_strcmpi(option_str[i], "--actual_geno") == 0) {
+			actual_geno = false;
+			cout << "!!!Remove me!!!." << endl;
+		}
+		else if (_strcmpi(option_str[i], "--freq_threshold") == 0) {
+			freq_threshold = stod(option_str[++i]);
+			if (freq_threshold < 0.0 || freq_threshold > 1.0) {
+				cout << "Allele frequency threshold is not within the range of (0.0, 1.0). Clipping to be within this range." << endl;
+				freq_threshold = (freq_threshold < 0.0 ? 0.0 : freq_threshold > 1.0 ? 1.0 : freq_threshold);
 			}
 		}
 	}
@@ -213,8 +225,8 @@ void option(int option_num, char* option_str[])
 		ref->filter_snp_maf(maf);
 
 	// Find each independent SNPs for both exposure and outcome data
-	cond_analysis *exp_analysis = new cond_analysis(p_cutoff, collinear, ld_window, out, verbose, top_snp);
-	cond_analysis *out_analysis = new cond_analysis(p_cutoff, collinear, ld_window, out, verbose, top_snp);
+	cond_analysis *exp_analysis = new cond_analysis(p_cutoff, collinear, ld_window, out, verbose, top_snp, actual_geno, freq_threshold);
+	cond_analysis *out_analysis = new cond_analysis(p_cutoff, collinear, ld_window, out, verbose, top_snp, actual_geno, freq_threshold);
 
 	exp_analysis->init_conditional(exposure, ref);
 	//out_analysis->init_conditional(outcome, ref);
