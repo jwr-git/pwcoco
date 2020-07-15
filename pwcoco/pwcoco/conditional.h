@@ -43,7 +43,8 @@ public:
 
 	void init_conditional(phenotype *pheno, reference *ref);
 	void match_gwas_phenotype(phenotype *pheno, reference *ref);
-	void massoc(reference *ref, string snplist);
+	void find_independent_snps(reference *ref);
+	void pw_conditional(size_t pos, reference *ref);
 
 	vector<size_t> read_snplist(string snplist, vector<size_t> &remain, reference *ref);
 	void makex_eigenVector(size_t j, eigenVector &x, bool resize, reference *ref);
@@ -64,12 +65,14 @@ public:
 
 	double a_ld_window; // Distance in kb after which SNPs are considered to be in LD
 
-	size_t sw_snps; // Amount of SNPs selected after stepwise selection
+	size_t num_ind_snps; // Amount of SNPs selected after stepwise selection
+	vector<size_t> ind_snps; // Position of SNPs selected after stepwise selection
 
 	// Joint analysis related
 	double a_collinear; // Collinearity check between SNPs
 	int jma_snpnum_collinear;
 	int jma_snpnum_backward;
+	vector<string> ja_snp_name;
 	eigenVector ja_freq;
 	eigenVector ja_beta;
 	eigenVector ja_beta_se;
@@ -109,4 +112,6 @@ private:
 	double jma_Ve; /// What am I?
 	double jma_Vp; /// Phenotypic variance
 	double GC_val; /// What am I? TODO
+
+	vector<size_t> remain_snps; // Remainder of SNPs after the stepwise selection process
 };

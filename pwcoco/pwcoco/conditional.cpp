@@ -133,6 +133,7 @@ void cond_analysis::match_gwas_phenotype(phenotype *pheno, reference *ref)
 	}
 
 	// Resize and get ready for the conditional analysis
+	ja_snp_name.resize(ref->to_include.size());
 	ja_freq.resize(ref->to_include.size());
 	ja_beta.resize(ref->to_include.size());
 	ja_beta_se.resize(ref->to_include.size());
@@ -140,6 +141,7 @@ void cond_analysis::match_gwas_phenotype(phenotype *pheno, reference *ref)
 	ja_N_outcome.resize(ref->to_include.size());
 
 	for (i = 0; i < ref->to_include.size(); i++) {
+		ja_snp_name[i] = pheno->snp_name[idx[i]];
 		ja_freq[i] = pheno->freq[idx[i]];
 		ja_beta[i] = pheno->beta[idx[i]];
 		ja_beta_se[i] = pheno->se[idx[i]];
@@ -188,7 +190,6 @@ void cond_analysis::stepwise_select(vector<size_t> &selected, vector<size_t> &re
 		selected_stay(selected, bC, bC_se, pC, ref);
 	}
 
-	sw_snps = selected.size();
 	cout << "Finally, " << selected.size() << " associated SNPs have been selected." << endl;
 }
 
@@ -526,10 +527,12 @@ void cond_analysis::makex_eigenVector(size_t j, eigenVector &x, bool resize, ref
 	for (i = 0; i < n; i++) {
 		if (!ref->bed_snp_1[ref->to_include[j]][ref->fam_ids_inc[i]] || ref->bed_snp_2[ref->to_include[j]][ref->fam_ids_inc[i]])
 		{
+			double snp1 = ref->bed_snp_1[ref->to_include[j]][ref->fam_ids_inc[i]] ? 1.0 : 0.0,
+				snp2 = ref->bed_snp_2[ref->to_include[j]][ref->fam_ids_inc[i]] ? 1.0 : 0.0;
 			if (ref->bim_allele1[ref->to_include[j]] == ref->ref_A[ref->to_include[j]])
-				x[i] = (ref->bed_snp_1[ref->to_include[j]][ref->fam_ids_inc[i]] + ref->bed_snp_2[ref->to_include[j]][ref->fam_ids_inc[i]]);
+				x[i] = snp1 + snp2;
 			else
-				x[i] = 2.0 - (ref->bed_snp_1[ref->to_include[j]][ref->fam_ids_inc[i]] + ref->bed_snp_2[ref->to_include[j]][ref->fam_ids_inc[i]]);
+				x[i] = 2.0 - (snp1 + snp2);
 		}
 		else {
 			x[i] = ref->mu[ref->to_include[j]];
@@ -724,9 +727,10 @@ vector<size_t> cond_analysis::read_snplist(string snplist, vector<size_t> &remai
 }
 
 /*
- * Run step-wise selection to find independent association signals/SNP
+ * Determine number of independent association signals within the region
+ * without conducting a conditional analysis.
  */
-void cond_analysis::massoc(reference *ref, string snplist)
+void cond_analysis::find_independent_snps(reference *ref)
 {
 	vector<size_t> selected, remain, pgiven;
 	eigenVector bC, bC_se, pC;
@@ -746,15 +750,37 @@ void cond_analysis::massoc(reference *ref, string snplist)
 
 	cout << "(" << jma_snpnum_backward << " SNPs eliminated by backward selection.)" << endl;
 
-	// Perform the joint analysis
-	eigenVector bJ, bJ_se, pJ;
-	massoc_joint(selected, bJ, bJ_se, pJ, ref);
+	num_ind_snps = selected.size();
+	ind_snps = selected;
+	remain_snps = remain;
+}
 
-	eigenMatrix rval(selected.size(), selected.size());
-	LD_rval(selected, rval);
+/*
+ * Run step-wise selection to find independent association signals/SNP
+ */
+void cond_analysis::pw_conditional(size_t pos, reference *ref)
+{
+	vector<size_t> selected, remain;
+	eigenVector bC, bC_se, pC;
+
+	selected = ind_snps;
+	remain = remain_snps;
+
+	// Exclude SNP from conditional
+	remain.push_back(selected[pos]);
+	selected.erase(selected.begin() + pos); // Expensive!
+
+	massoc_conditional(selected, remain, bC, bC_se, pC, ref);
+
+	// Perform the joint analysis 
+	//eigenVector bJ, bJ_se, pJ;
+	//massoc_joint(selected, bJ, bJ_se, pJ, ref);
+
+	//eigenMatrix rval(selected.size(), selected.size());
+	//LD_rval(selected, rval);
 	
-	sanitise_output(remain, bC, bC_se, pC, rval, CO_COND, ref);
-	sanitise_output(selected, bJ, bJ_se, pJ, rval, CO_JOINT, ref);
+	//sanitise_output(remain, bC, bC_se, pC, rval, CO_COND, ref);
+	//sanitise_output(selected, bJ, bJ_se, pJ, rval, CO_JOINT, ref);
 }
 
 void cond_analysis::LD_rval(const vector<size_t> &idx, eigenMatrix &rval)

@@ -229,12 +229,38 @@ void option(int option_num, char* option_str[])
 	cond_analysis *out_analysis = new cond_analysis(p_cutoff, collinear, ld_window, out, verbose, top_snp, actual_geno, freq_threshold);
 
 	exp_analysis->init_conditional(exposure, ref);
-	//out_analysis->init_conditional(outcome, ref);
+	out_analysis->init_conditional(outcome, ref);
 
-	//cout << "There are " << exp_analysis->sw_snps << " selected SNPs in the exposure dataset and " << out_analysis->sw_snps << " in the outcome dataset." << endl;
-	//cout << "Performing " << exp_analysis->sw_snps * out_analysis->sw_snps << " conditional  and colocalisation analyses." << endl;
+	// Find how many independent SNPs are in the region
+	// To make this multithreadable: move ref->to_include into the cond_analysis class
+	//thread t1(&cond_analysis::find_independent_snps, exp_analysis, ref);
+	exp_analysis->find_independent_snps(ref);
+	out_analysis->find_independent_snps(ref);
+	//t1.join();
+
+	cout << "There are " << exp_analysis->num_ind_snps << " selected SNPs in the exposure dataset and " << out_analysis->num_ind_snps << " in the outcome dataset." << endl;
+	cout << "Performing " << exp_analysis->num_ind_snps * out_analysis->num_ind_snps << " conditional and colocalisation analyses." << endl;
 	
-	exp_analysis->massoc(ref, snplist);
+	// Perform PWCOCO!
+#pragma omp parallel
+	{
+#pragma omp for
+		for (size_t i = 0; i < exp_analysis->num_ind_snps; i++) 
+		{
+			// pw_conditional returns betas, ses, etc. data
+			for (size_t j = 0; j < out_analysis->num_ind_snps; j++) 
+			{
+				// pw_conditional also returns data here too
+			}
+		}
+
+		mdata *matched_conditional = new mdata(exp_return, out_return);
+		coloc_analysis *conditional_coloc = new coloc_analysis(matched_conditional, 1e-4, 1e-4, 1e-5);
+		initial_coloc->init_coloc();
+
+		free(matched_conditional);
+		free(conditional_coloc);
+	}
 
 	return;
 }
