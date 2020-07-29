@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <complex>
 #include <cstring>
 #include <iostream>
 #include <fcntl.h>

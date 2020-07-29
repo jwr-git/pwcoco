@@ -4,6 +4,7 @@
 #include <chrono>
 #include <ctime>
 #include <iostream>
+#include <omp.h>
 #include <time.h>
 #include <thread>
 

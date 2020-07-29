@@ -79,10 +79,10 @@ double v_calc_median(const std::vector<double> &x)
 	if (size == 1)
 		return b[0];
 	std::stable_sort(b.begin(), b.end());
-	if (size % 2 == 0)
-		return (b[size / 2 - 1] + b[size / 2]) / 2;
-	else
+	if (size % 2 == 1)
 		return b[(size - 1) / 2];
+	else
+		return (b[size / 2] + b[size / 2 - 1]) / 2;
 }
 
 std::vector<std::size_t> v_sort_indices(const std::vector<std::string> &v)
@@ -101,7 +101,7 @@ std::vector<std::size_t> v_sort_indices(const std::vector<std::string> &v)
 void eigenVector2Vector(Eigen::VectorXd &x, std::vector<double> &y)
 {
 	y.resize(x.size());
-	for (int i = 0; i < x.size(); i++)
+	for (size_t i = 0; i < x.size(); i++)
 		y[i] = x[i];
 }
 
@@ -222,7 +222,7 @@ std::vector<double> lm_fixed(const std::vector<double> &x, const std::vector<dou
 	if (x.size() != y.size()) {
 		throw("Cannot compute regression for colocalisation due to differing sizes of vectors.");
 	}
-	size_t i, n = x.size();
+	size_t n = x.size();
 	double sumXY = 0.0;
 	double sumXX = 0.0;
 	for (size_t i = 0; i < n; i++) {

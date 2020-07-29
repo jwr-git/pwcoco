@@ -10,12 +10,11 @@
 #include <sstream>
 #include <vector>
 
-#include <boost/iostreams/device/mapped_file.hpp>
-#include <boost/algorithm/string.hpp>
-
 #include "helper_funcs.h"
 
 using namespace std;
+
+class cond_analysis;
 
 class phenotype {
 public:
@@ -24,7 +23,15 @@ public:
 
 	void read_phenofile(string filename);
 	void phenotype_clear();
-	double calc_variance();
+	double calc_variance(vector<size_t> idx);
+
+	string get_phenoname() {
+		return pheno_name;
+	}
+
+	double get_variance() {
+		return pheno_variance;
+	}
 
 	// From phenotype file
 	vector<string> snp_name;
@@ -46,11 +53,12 @@ private:
 	double pheno_variance; /// Estimated phenotypic variance from summary stats
 };
 
-phenotype *init_exposure(string filename, string pheno_name);
+phenotype *init_pheno(string filename, string pheno_name);
 
 class mdata {
 public:
 	mdata(phenotype *ph1, phenotype *ph2);
+	mdata(cond_analysis *ca1, cond_analysis *ca2);
 	mdata();
 
 	// Data from datasets
@@ -72,10 +80,9 @@ public:
 	reference();
 	void reference_clear();
 
-	void read_bimfile(string bimfile, phenotype *pheno);
+	void read_bimfile(string bimfile);
 	void read_famfile(string famfile);
 	void read_bedfile(string bedfile);
-	void read_bimfile_asbinary(string bedfile);
 	void bim_clear();
 	void fam_clear();
 
@@ -86,6 +93,10 @@ public:
 	void get_read_individuals(vector<int> &read_individuals);
 	void get_read_snps(vector<int> &read_snps);
 	void update_inclusion(const vector<size_t> idx, const vector<string> snps);
+
+	void includes_clear() {
+		to_include.clear();
+	}
 
 	// From .bim
 	vector<string> bim_snp_name; /// SNP names
@@ -125,5 +136,5 @@ private:
 	vector<unsigned short> fam_sex; /// Sex '1' = male, '2' = female, '0' = unknown
 	vector<unsigned short> fam_pheno; /// Phenotype value '1' = control, '2' = case, '-9'/'0'/non-numeric = missing data if case/control
 	size_t individuals; /// Number of individuals read from the .fam file
-	map<string, int> fam_map; /// Mapping between FIDs and IIDs
+	map<string, size_t> fam_map; /// Mapping between FIDs and IIDs
 };

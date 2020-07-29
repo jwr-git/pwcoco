@@ -38,12 +38,26 @@ coloc_analysis::coloc_analysis()
 void coloc_analysis::estimate_bf(const vector<double> beta, const vector<double> se, const vector<double> freq, 
 	const vector<double> n, vector<double> *ABF)
 {
-	vector<double> invbeta = beta,
-		nvx = freq,
-		z = beta,
-		sesq = se,
+	vector<double> invbeta = beta, 
+		nvx = freq, 
+		z = beta, 
+		sesq = se, 
 		ssize = n,
 		sdY, sd_prior, r, log_temp;
+
+	// There may be zero betas in the data which need removed
+	// These vectors are all the same size so this is... possible but maybe not best practice
+	//for (size_t i = 0; i < beta.size(); i++) {
+	//	if (!(beta[i] == 0.0 || isnan(beta[i]) || isinf(beta[i]) || !isfinite(beta[i])
+	//		|| isnan(se[i]) || isinf(se[i]) || !isfinite(se[i])))
+	//	{
+	//		invbeta.push_back(beta[i]);
+	//		nvx.push_back(freq[i]);
+	//		z.push_back(beta[i]);
+	//		sesq.push_back(se[i]);
+	//		ssize.push_back(n[i]);
+	//	}
+	//}
 
 	// Square standard errors and ensure frequencies are MINOR allele frequencies
 	transform(sesq.begin(), sesq.end(), sesq.begin(), [](double x) { return x * x; });
@@ -73,7 +87,7 @@ void coloc_analysis::estimate_bf(const vector<double> beta, const vector<double>
 	transform(log_temp.begin(), log_temp.end(), log_temp.begin(), [](double x) { return log(1 - x); });
 
 	// Caluclate approximate Bayes factor
-	size_t i, size = beta.size();
+	size_t i, size = invbeta.size();
 	//ABF->resize(size);
 	for (i = 0; i < size; i++) {
 		ABF->push_back(0.5 * (log_temp[i] + (r[i] * z[i] * z[i])));

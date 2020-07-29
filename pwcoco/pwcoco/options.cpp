@@ -202,8 +202,8 @@ void option(int option_num, char* option_str[])
 	}
 
 	// First pass through - match data and perform coloc
-	phenotype *exposure = init_exposure(phen1_file, "exposure");
-	phenotype *outcome = init_exposure(phen2_file, "outcome");
+	phenotype *exposure = init_pheno(phen1_file, "exposure");
+	phenotype *outcome = init_pheno(phen2_file, "outcome");
 
 	mdata *matched = new mdata(exposure, outcome);
 	coloc_analysis *initial_coloc = new coloc_analysis(matched, 1e-4, 1e-4, 1e-5);
@@ -217,7 +217,7 @@ void option(int option_num, char* option_str[])
 	// Initialise the reference
 	reference *ref = new reference(out, chr, verbose);
 
-	ref->read_bimfile(bim_file, exposure); // No need to do this for the outcome dataset as well as they have already been matched
+	ref->read_bimfile(bim_file); // No need to do this for the outcome dataset as well as they have already been matched
 	ref->read_famfile(fam_file);
 	ref->read_bedfile(bed_file);
 	ref->calculate_allele_freq();
@@ -225,41 +225,36 @@ void option(int option_num, char* option_str[])
 		ref->filter_snp_maf(maf);
 
 	// Find each independent SNPs for both exposure and outcome data
-	cond_analysis *exp_analysis = new cond_analysis(p_cutoff, collinear, ld_window, out, verbose, top_snp, actual_geno, freq_threshold);
-	cond_analysis *out_analysis = new cond_analysis(p_cutoff, collinear, ld_window, out, verbose, top_snp, actual_geno, freq_threshold);
-
+	cond_analysis *exp_analysis = new cond_analysis(p_cutoff, collinear, ld_window, out, verbose, top_snp, actual_geno, freq_threshold, "exposure");
 	exp_analysis->init_conditional(exposure, ref);
-	out_analysis->init_conditional(outcome, ref);
-
-	// Find how many independent SNPs are in the region
-	// To make this multithreadable: move ref->to_include into the cond_analysis class
-	//thread t1(&cond_analysis::find_independent_snps, exp_analysis, ref);
 	exp_analysis->find_independent_snps(ref);
-	out_analysis->find_independent_snps(ref);
-	//t1.join();
 
-	cout << "There are " << exp_analysis->num_ind_snps << " selected SNPs in the exposure dataset and " << out_analysis->num_ind_snps << " in the outcome dataset." << endl;
-	cout << "Performing " << exp_analysis->num_ind_snps * out_analysis->num_ind_snps << " conditional and colocalisation analyses." << endl;
+	cond_analysis *out_analysis = new cond_analysis(p_cutoff, collinear, ld_window, out, verbose, top_snp, actual_geno, freq_threshold, "outcome");
+	out_analysis->init_conditional(outcome, ref);
+	out_analysis->find_independent_snps(ref);
+
+	cout << "There are " << exp_analysis->get_num_ind() << " selected SNPs in the exposure dataset and " << out_analysis->get_num_ind() << " in the outcome dataset." << endl;
+	cout << "Performing " << exp_analysis->get_num_ind() * out_analysis->get_num_ind() << " conditional and colocalisation analyses." << endl;
 	
 	// Perform PWCOCO!
 #pragma omp parallel
 	{
 #pragma omp for
-		for (size_t i = 0; i < exp_analysis->num_ind_snps; i++) 
+		for (size_t i = 0; i < exp_analysis->get_num_ind(); i++)
 		{
-			// pw_conditional returns betas, ses, etc. data
-			for (size_t j = 0; j < out_analysis->num_ind_snps; j++) 
+			exp_analysis->pw_conditional(exp_analysis->get_num_ind() > 1 ? (int)i : -1, ref); // Be careful not to remove the only independent SNP
+			for (size_t j = 0; j < out_analysis->get_num_ind(); j++)
 			{
-				// pw_conditional also returns data here too
+				out_analysis->pw_conditional(out_analysis->get_num_ind() > 1 ? (int)j : -1, ref);
+
+				mdata *matched_conditional = new mdata(exp_analysis, out_analysis);
+				coloc_analysis *conditional_coloc = new coloc_analysis(matched_conditional, 1e-4, 1e-4, 1e-5);
+				initial_coloc->init_coloc();
+
+				delete(matched_conditional);
+				delete(conditional_coloc);
 			}
 		}
-
-		mdata *matched_conditional = new mdata(exp_return, out_return);
-		coloc_analysis *conditional_coloc = new coloc_analysis(matched_conditional, 1e-4, 1e-4, 1e-5);
-		initial_coloc->init_coloc();
-
-		free(matched_conditional);
-		free(conditional_coloc);
 	}
 
 	return;

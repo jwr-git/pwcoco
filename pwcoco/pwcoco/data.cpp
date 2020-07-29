@@ -48,9 +48,9 @@ void phenotype::phenotype_clear()
  * names are flexible.
  * @ret void
  */
-phenotype *init_exposure(string filename, string pheno_name)
+phenotype *init_pheno(string filename, string pheno_name)
 {
-	phenotype *pheno = new phenotype("pheno_name");
+	phenotype *pheno = new phenotype(pheno_name);
 	pheno->read_phenofile(filename);
 
 	return pheno;
@@ -76,7 +76,7 @@ void phenotype::read_phenofile(string filename)
 
 	// Buffers
 	string snp_name_buf, allele1_buf, allele2_buf;
-	double freq_buf = -1.0, beta_buf, se_buf, pval_buf, n_buf, nc_buf;
+	double freq_buf = -1.0, beta_buf, se_buf = 0.0, pval_buf, n_buf, nc_buf;
 
 	ifstream pfile(filename.c_str());
 	if (!pfile) {
@@ -93,6 +93,7 @@ void phenotype::read_phenofile(string filename)
 
 		// Replace buffers
 		snp_name_buf = allele1_buf = allele2_buf = "";
+		se_buf = 0.0; 
 		freq_buf = -1;
 
 		while (getline(ss, substr, '\t')) {
@@ -115,38 +116,25 @@ void phenotype::read_phenofile(string filename)
 					allele2_buf = string2upper(substr);
 				break;
 			case 3: // Fourth column contains allele frequency of A1
-				freq_buf = atof(substr.c_str());
+				freq_buf = stod(substr);
 				break;
 			case 4: // Fifth column contains beta
-				beta_buf = atof(substr.c_str());
+				beta_buf = stod(substr);
 				break;
 			case 5: // Sixth column contains SE
-				se_buf = atof(substr.c_str());
+				se_buf = stod(substr);
 				break;
 			case 6: // Seventh column contains P value
-				pval_buf = atof(substr.c_str());
+				pval_buf = stod(substr);
 				break;
 			case 7: // Eighth column contains N
-				n_buf = atof(substr.c_str());
+				n_buf = stod(substr);
 				break;
 			}
 			tab++;
 		}
-		if (freq_buf == -1.0)
+		if (se_buf == 0.0)
 			continue;
-
-		if (isnan(beta_buf) || isinf(beta_buf) || !isfinite(beta_buf)) {
-			continue;
-		}
-
-		if (beta_buf == 0.0) {
-			ShowWarning("SNP " + snp_name_buf + " in file " + filename + " has zero beta. Skipping.", true); // TODO verbose
-			continue;
-		}
-
-		if (isnan(se_buf) || isinf(se_buf) || !isfinite(se_buf)) {
-			continue;
-		}
 
 		// Add SNPs
 		snp_name.push_back(snp_name_buf);
@@ -171,7 +159,6 @@ void phenotype::read_phenofile(string filename)
 	}
 	pfile.close();
 	pheno_variance = v_calc_median(Vp_v);
-	// If want to adjust P-values, add GC here
 
 	cout << "Read a total of: " << snp_name.size() << " lines in phenotype file \"" << filename << "\"." << endl;
 	cout << "Phenotypic variance estimated from summary statistcs of all SNPs: " << pheno_variance << "." << endl;
@@ -180,10 +167,10 @@ void phenotype::read_phenofile(string filename)
 /*
  * Force calculates the Phenotypic variance
  */
-double phenotype::calc_variance()
+double phenotype::calc_variance(vector<size_t> idx)
 {
 	vector<double> Vp_temp;
-	for (auto &i : matched_idx) {
+	for (auto &i : idx) {
 		Vp_temp.push_back(Vp_v[i]);
 	}
 	pheno_variance = v_calc_median(Vp_temp);
@@ -213,7 +200,7 @@ reference::reference()
 
 void reference::reference_clear()
 {
-	vector<double>().swap(mu); /// What am I?
+	vector<double>().swap(mu);
 	bim_clear();
 	fam_clear();
 }
@@ -226,11 +213,11 @@ void reference::reference_clear()
  * @param string bimfile File name and path to .bim file
  * @ret void
  */
-void reference::read_bimfile(string bimfile, phenotype *pheno)
+void reference::read_bimfile(string bimfile)
 {
 	string line;
 	int count = 0;
-	size_t i;
+	//size_t i;
 	vector<string>::iterator iter;
 
 	// Temporary containers
@@ -410,12 +397,12 @@ void reference::sanitise_list()
 		to_include[i] = i;
 
 		if (snp_map.find(bim_snp_name[i]) != snp_map.end()) {
-			ShowWarning("Duplicated SNP ID \"" + bim_snp_name[i] + "\".", a_verbose);
+			//ShowWarning("Duplicated SNP ID \"" + bim_snp_name[i] + "\".", a_verbose);
 
 			ss << bim_snp_name[i] << "_" << i + 1;
 			bim_snp_name[i] = ss.str();
 
-			ShowWarning("This SNP has been changed to \"" + bim_snp_name[i] + "\".", a_verbose);
+			//ShowWarning("This SNP has been changed to \"" + bim_snp_name[i] + "\".", a_verbose);
 		}
 		else
 			ss << bim_snp_name[i];
@@ -500,7 +487,7 @@ void reference::pair_fam()
 
 	for (i = 0; i < individuals; i++) {
 		fam_ids_inc[i] = i;
-		fam_map.insert(pair<string, int>(fam_fid[i] + ":" + fam_iid[i], i));
+		fam_map.insert(pair<string, size_t>(fam_fid[i] + ":" + fam_iid[i], i));
 		if (size == fam_map.size())
 			ShowError("Duplicate individual in .fam file found: \"" + fam_fid[i] + "\t" + fam_iid[i] + "\"."); /// Include IDs here probably
 		size = fam_map.size();
@@ -524,7 +511,7 @@ void reference::filter_snp_maf(double maf)
 	map<string, size_t> id_map(snp_map);
 	map<string, size_t>::iterator it, end = id_map.end();
 	size_t prev_size = to_include.size();
-	double f_temp = 0.0;
+	double f = 0.0;
 
 	cout << "Filtering SNPs with MAF > " << maf << "." << endl;
 
@@ -532,8 +519,8 @@ void reference::filter_snp_maf(double maf)
 	snp_map.clear();
 
 	for (it = id_map.begin(); it != end; ++it) {
-		f_temp = mu[it->second] * 0.5;
-		if (f_temp <= maf || (1.0 - f_temp) <= maf)
+		f = mu[it->second] * 0.5;
+		if (f <= maf || (1.0 - f) <= maf)
 			continue;
 		snp_map.insert(*it);
 		to_include.push_back(it->second);
@@ -561,16 +548,16 @@ void reference::calculate_allele_freq()
 
 #pragma omp parallel for
 	for (i = 0; i < bim_ids_size; i++) {
-		double fcount = 0.0, f_buf = 0.0;
+		double fcount = 0.0, f = 0.0;
 
 		for (j = 0; j < fam_ids_size; j++) {
 			if (!bed_snp_1[to_include[i]][fam_ids_inc[j]] || bed_snp_2[to_include[i]][fam_ids_inc[j]]) {
 				double snp1 = bed_snp_1[to_include[i]][fam_ids_inc[j]] ? 1.0 : 0.0,
 					snp2 = bed_snp_2[to_include[i]][fam_ids_inc[j]] ? 1.0 : 0.0;
-				f_buf = snp1 + snp2;
+				f = snp1 + snp2;
 				if (bim_allele2[to_include[i]] == ref_A[to_include[i]])
-					f_buf = 2.0 - f_buf;
-				mu[to_include[i]] += f_buf;
+					f = 2.0 - f;
+				mu[to_include[i]] += f;
 				fcount += 1.0;
 			}
 		}
@@ -691,53 +678,13 @@ void reference::read_bedfile(string bedfile)
 	cout << "Genotype data for " << fam_size << " individuals and " << bim_size << " SNPs read." << endl;
 }
 
-void reference::read_bimfile_asbinary(string bedfile)
-{
-	size_t i, j, k,
-		snp_idx, ind_idx;
-	const size_t bim_size = to_include.size(),
-		fam_size = fam_ids_inc.size();
-	vector<int> read_individuals, read_snps;
-
-	char ch[1];
-	bitset<8> b;
-	fstream bed(bedfile.c_str(), ios::in | ios::binary);
-
-	get_read_individuals(read_individuals);
-	get_read_snps(read_snps);
-
-	if (!bim_size || !fam_size) {
-		ShowError("No data from either .bim or .fam files to continue with.");
-		return;
-	}
-
-	if (!bed) {
-		ShowError("Cannot open " + bedfile + " to read.");
-		return;
-	}
-
-	bed_snp_1.resize(bim_size);
-	bed_snp_2.resize(bim_size);
-	for (i = 0; i < bim_size; i++) {
-		bed_snp_1[i].resize(fam_size);
-		bed_snp_2[i].resize(fam_size);
-	}
-
-	// Read .bed file
-	int N = (int)ceil(fam_size / 4); // # of sample bytes
-	bed.ignore(3); // Ignore first three bytes as these are the header
-	for (i = 0; i < bim_size; i++) {
-		;
-	}
-}
-
 /*
  * Updates the inclusion list of SNPs based on an index-based vector.
  */
 void reference::update_inclusion(const vector<size_t> idx, const vector<string> snps)
 {
 	size_t i, n = idx.size();
-	map<string, size_t> snp_map_buffer(snp_map);
+	map<string, size_t> snp_map_buffer(snp_map), snp_map_keep(snp_map);
 	map<string, size_t>::iterator iter;
 
 	for (i = 0; i < n; i++) {
@@ -745,16 +692,19 @@ void reference::update_inclusion(const vector<size_t> idx, const vector<string> 
 	}
 
 	for (iter = snp_map_buffer.begin(); iter != snp_map_buffer.end(); iter++) {
-		snp_map.erase(iter->first);
+		snp_map_keep.erase(iter->first);
 	}
 
 	to_include.clear();
-	for (iter = snp_map.begin(); iter != snp_map.end(); iter++) {
+	for (iter = snp_map_keep.begin(); iter != snp_map_keep.end(); iter++) {
 		to_include.push_back(iter->second);
 	}
 	stable_sort(to_include.begin(), to_include.end());
 }
 
+/*
+ * Initialise matched data class from two phenotypes
+ */
 mdata::mdata(phenotype *ph1, phenotype *ph2)
 {
 	size_t n = ph1->snp_name.size();
@@ -762,9 +712,24 @@ mdata::mdata(phenotype *ph1, phenotype *ph2)
 
 	// Match SNPs
 	for (it = ph1->snp_name.begin(); it != ph1->snp_name.end(); it++) {
+		size_t d1 = distance(ph1->snp_name.begin(), it);
+		if (ph1->beta[d1] == 0.0 || isnan(ph1->beta[d1]) || isinf(ph1->beta[d1]) || !isfinite(ph1->beta[d1])
+			|| isnan(ph1->se[d1]) || isinf(ph1->se[d1]) || !isfinite(ph1->se[d1]))
+		{
+			continue;
+		}
 		vector<string>::iterator it2;
+
 		if ((it2 = find(ph2->snp_name.begin(), ph2->snp_name.end(), *it)) != ph2->snp_name.end()) {
-			snp_map.insert(pair<size_t, size_t>(distance(ph1->snp_name.begin(), it), distance(ph2->snp_name.begin(), it2)));
+			size_t d2 = distance(ph2->snp_name.begin(), it2);
+			if (ph2->beta[d2] == 0.0 || isnan(ph2->beta[d2]) || isinf(ph2->beta[d2]) || !isfinite(ph2->beta[d2])
+				|| isnan(ph2->se[d2]) || isinf(ph2->se[d2]) || !isfinite(ph2->se[d2]))
+			{
+				// Clean your own damn data!
+				continue;
+			}
+
+			snp_map.insert(pair<size_t, size_t>(d1, d2));
 			ph1->matched_idx.push_back(distance(ph1->snp_name.begin(), it));
 			ph2->matched_idx.push_back(distance(ph2->snp_name.begin(), it2));
 		}
