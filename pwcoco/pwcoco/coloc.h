@@ -24,12 +24,15 @@ public:
 	coloc_analysis();
 
 	void init_coloc();
-	void estimate_bf(const vector<double> beta, const vector<double> se, const vector<double> freq, const vector<double> n, vector<double> *ABF);
-	void combine_abf(size_t abf_size);
+	void init_coloc(string snp1, string snp2);
 
 	vector<double> pp_abf; // Results from colocalisation
 	
 private:
+	void perform_coloc();
+	void estimate_bf(const vector<double> beta, const vector<double> se, const vector<double> freq, const vector<double> n, vector<double> *ABF);
+	void combine_abf(size_t abf_size);
+
 	mdata *matched;
 
 	// Coloc stuff

@@ -862,16 +862,6 @@ void cond_analysis::pw_conditional(int pos, reference *ref)
 		n_cond.push_back(nD[j]);
 	}
 	cond_passed = bC.size() > 0;
-
-	// Perform the joint analysis 
-	//eigenVector bJ, bJ_se, pJ;
-	//massoc_joint(selected, bJ, bJ_se, pJ, ref);
-
-	//eigenMatrix rval(selected.size(), selected.size());
-	//LD_rval(selected, rval);
-	
-	//sanitise_output(remain, bC, bC_se, pC, rval, CO_COND, ref);
-	//sanitise_output(selected, bJ, bJ_se, pJ, rval, CO_JOINT, ref);
 }
 
 void cond_analysis::LD_rval(const vector<size_t> &idx, eigenMatrix &rval)

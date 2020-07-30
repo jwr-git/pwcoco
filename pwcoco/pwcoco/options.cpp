@@ -240,7 +240,7 @@ void option(int option_num, char* option_str[])
 
 				mdata *matched_conditional = new mdata(exp_analysis, out_analysis);
 				coloc_analysis *conditional_coloc = new coloc_analysis(matched_conditional, 1e-4, 1e-4, 1e-5);
-				initial_coloc->init_coloc();
+				initial_coloc->init_coloc(exp_analysis->get_ind_snp_name(i), out_analysis->get_ind_snp_name(j));
 
 				delete(matched_conditional);
 				delete(conditional_coloc);

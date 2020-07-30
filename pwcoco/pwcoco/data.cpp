@@ -116,34 +116,25 @@ void phenotype::read_phenofile(string filename)
 					allele2_buf = string2upper(substr);
 				break;
 			case 3: // Fourth column contains allele frequency of A1
-				if (substr == "." || substr == "NA")
-					break;
-				freq_buf = stod(substr);
+				checkEntry(substr, &freq_buf);
 				break;
 			case 4: // Fifth column contains beta
-				if (substr == "." || substr == "NA")
-					break;
-				beta_buf = stod(substr);
+				checkEntry(substr, &beta_buf);
 				break;
 			case 5: // Sixth column contains SE
-				if (substr == "." || substr == "NA")
-					break;
-				se_buf = stod(substr);
+				checkEntry(substr, &se_buf);
 				break;
 			case 6: // Seventh column contains P value
-				if (substr == "." || substr == "NA")
-					break;
-				pval_buf = stod(substr);
+				checkEntry(substr, &pval_buf);
 				break;
 			case 7: // Eighth column contains N
-				if (substr == "." || substr == "NA")
-					break;
-				n_buf = stod(substr);
+				checkEntry(substr, &n_buf);
 				break;
 			}
 			tab++;
 		}
-		if (se_buf == 0.0 || freq_buf == -1.0)
+		if (se_buf == 0.0 || se_buf == 1.0
+			|| freq_buf == -1.0 || beta_buf == 1.0)
 			continue;
 
 		// Add SNPs

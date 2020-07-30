@@ -19,6 +19,7 @@
 bool file_exists(const std::string &name);
 void ShowWarning(const std::string msg, bool verbose);
 void ShowError(const std::string msg);
+void checkEntry(std::string txt, double *val);
 
 bool isFloatEqual(double lhs, double rhs);
 std::string string2upper(const std::string &str);

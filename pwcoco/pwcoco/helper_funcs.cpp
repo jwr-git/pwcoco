@@ -36,6 +36,16 @@ void ShowError(const std::string msg)
 	throw(msg);
 }
 
+void checkEntry(std::string txt, double *val)
+{
+	if (txt == "." || txt == "NA" || txt == "") {
+		*val = -1;
+	}
+	else {
+		*val = stod(txt);
+	}
+}
+
 double absi(const double &x)
 {
 	std::complex<double> cld(x);
@@ -101,7 +111,7 @@ std::vector<std::size_t> v_sort_indices(const std::vector<std::string> &v)
 void eigenVector2Vector(Eigen::VectorXd &x, std::vector<double> &y)
 {
 	y.resize(x.size());
-	for (size_t i = 0; i < x.size(); i++)
+	for (size_t i = 0; i != x.size(); i++)
 		y[i] = x[i];
 }
 
@@ -125,67 +135,6 @@ double logdiff(double x, double y)
 	double m = std::max(x, y);
 	return m + log(exp(x - m) - exp(y - m));
 }
-
-/*
-template<typename KeyType, typename LeftValue, typename RightValue>
-std::map<KeyType, pair<LeftValue, RightValue> > IntersectMaps(const std::map<KeyType, LeftValue> &left, const std::map<KeyType, RightValue> &right)
-{
-	std::map<KeyType, pair<LeftValue, RightValue> > result;
-	typename std::map<KeyType, LeftValue>::const_iterator il = left.begin();
-	typename std::map<KeyType, RightValue>::const_iterator ir = right.begin();
-	while (il != left.end() && ir != right.end())
-	{
-		if (il->first < ir->first)
-			++il;
-		else if (ir->first < il->first)
-			++ir;
-		else
-		{
-			result.insert(make_pair(il->first, make_pair(il->second, ir->second)));
-			++il;
-			++ir;
-		}
-	}
-	return result;
-}
-
-std::map<std::string, int> vm_intersect(const std::map<std::string, int> &left, const std::vector<std::string> &right)
-{
-	std::map<std::string, int> result;
-	typename std::map<std::string, int>::const_iterator il = left.begin();
-	typename std::vector<std::string>::const_iterator ir = right.begin();
-
-	while (il != left.end() && ir != right.end())
-	{
-		if (il->first < ir->c_str())
-			++il;
-		else if (ir->c_str() < il->first)
-			++ir;
-		else
-		{
-			result.insert(make_pair(il->first, il->second));
-			++il;
-			++ir;
-		}
-	}
-	return result;
-}
-
-std::vector<int> vm_intersect(const std::map<std::string, int> &m, const std::vector<std::string> &v)
-{
-	std::vector<int> result;
-	std::vector<std::string>::iterator iter = v.begin();
-
-	// Check if string vector is in map and store the position
-	while (iter != v.end())
-	{
-		if (m.count(iter.c_str()))
-			result.push_back(m[iter.c_str()]);
-		iter++;
-	}
-	return result;
-}
-*/
 
 std::vector<double> lm(const std::vector<double> &x, const std::vector<double> &y)
 {

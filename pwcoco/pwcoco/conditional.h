@@ -56,6 +56,16 @@ public:
 		return num_ind_snps;
 	}
 
+	string get_ind_snp_name(size_t pos) {
+		try {
+			return ja_snp_name[ind_snps[pos]];
+		}
+		catch (...) {
+			cout << "Independent SNP index out of bound." << endl;
+			return "";
+		}
+	}
+
 	void init_conditional(phenotype *pheno, reference *ref);
 	void find_independent_snps(reference *ref);
 	void pw_conditional(int pos, reference *ref);

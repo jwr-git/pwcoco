@@ -118,6 +118,20 @@ void coloc_analysis::combine_abf(size_t abf_size)
 
 void coloc_analysis::init_coloc()
 {
+	perform_coloc();
+	cout << "Unconditioned colocalisation results." << endl;
+	cout << "H0: " << pp_abf[H0] << " H1: " << pp_abf[H1] << " H2: " << pp_abf[H2] << " H3: " << pp_abf[H3] << " H4: " << pp_abf[H4] << "; " << log_abf_all << endl;
+}
+
+void coloc_analysis::init_coloc(string snp1, string snp2)
+{
+	perform_coloc();
+	cout << "Conditioned results for SNP1: " << snp1 << ", SNP2: " << snp2 << endl;
+	cout << "H0: " << pp_abf[H0] << " H1: " << pp_abf[H1] << " H2: " << pp_abf[H2] << " H3: " << pp_abf[H3] << " H4: " << pp_abf[H4] << "; " << log_abf_all << endl;
+}
+
+void coloc_analysis::perform_coloc()
+{
 	vector<double> temp, temp2;
 	// Estimate sdY and then Bayes factor for the two datasets
 	// First the conditional analysis dataset
@@ -143,5 +157,4 @@ void coloc_analysis::init_coloc()
 
 	// Combine the PPs to find each H
 	combine_abf(ABF_sum.size());
-	cout << "H0: " << pp_abf[H0] << " H1: " << pp_abf[H1] << " H2: " << pp_abf[H2] << " H3: " << pp_abf[H3] << " H4: " << pp_abf[H4] << "; " << log_abf_all << endl;
 }
