@@ -25,12 +25,9 @@ int main(int argc, char* argv[])
 	cout << " * '-----------'                                     `                             `                *" << endl;
 	cout << " ****************************************************************************************************" << endl;
 
-	long int time_used = 0, start = time(NULL);
-	time_t curr = time(0);
-	char time_str[26];
+	chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+	chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 
-	ctime_s(time_str, sizeof time_str, &curr);
-	printf("Analysis started: %s\n", time_str);
 	cout << "Options: " << endl;
 
 	try {
@@ -43,11 +40,7 @@ int main(int argc, char* argv[])
 		cerr << "\n" << err_msg << endl;
 	}
 
-	curr = time(0);
-	ctime_s(time_str, sizeof time_str, &curr);
-	printf("\nAnalysis finished: %s", time_str);
-	time_used = time(NULL) - start;
-	cout << "Computational time: " << time_used / 3600 << ":" << (time_used % 3600) / 60 << ":" << time_used % 60 << endl; // Change me to make me better please
+	cout << "Analysis finished.\nComputational time: " << (std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()) / 1000000.0 << " (secs)" << endl; // Change me to make me better please
 
 	return 0;
 }
@@ -66,7 +59,8 @@ void option(int option_num, char* option_str[])
 		freq_threshold = 0.2;
 	string bfile = "", bim_file = "", fam_file = "", bed_file = "",
 		phen1_file = "", phen2_file = "",
-		out = "", snplist = "";
+		out = "", snplist = "",
+		opt;
 	bool verbose = true, actual_geno = false;
 
 	/*
@@ -74,8 +68,9 @@ void option(int option_num, char* option_str[])
 	 * For a list of these...
 	 */
 	for (i = 1; i < option_num; i++) {
+		opt = option_str[i];
 		/* Required flags */
-		if (_strcmpi(option_str[i], "--bfile") == 0) {
+		if (opt == "--bfile") {
 			bfile = option_str[++i];
 			cout << "Using " << bfile << " as .bfile." << endl;
 
@@ -87,39 +82,39 @@ void option(int option_num, char* option_str[])
 			bed_file = bfile + ".bed";
 
 		}
-		else if (_strcmpi(option_str[i], "--phen1_file") == 0) {
+		else if (opt == "--phen1_file") {
 			phen1_file = option_str[++i];
 			cout << "Using " << phen1_file << " as phenotype 1 file." << endl;
 		}
-		else if (_strcmpi(option_str[i], "--phen2_file") == 0) {
+		else if (opt == "--phen2_file") {
 			phen2_file = option_str[++i];
 			cout << "Phenotype 2 file is: " << phen2_file << endl;
 		}
 
 		/* Optional */
-		else if (_strcmpi(option_str[i], "--snp_list") == 0) {
+		else if (opt == "--snp_list") {
 			snplist = option_str[++i];
 			cout << "Using " << snplist << " as list of SNPs upon which to condition." << endl;
 		}
-		else if (_strcmpi(option_str[i], "--p_cutoff") == 0) {
+		else if (opt == "--p_cutoff") {
 			p_cutoff = stod(option_str[++i]);
 		}
-		else if (_strcmpi(option_str[i], "--out") == 0) {
+		else if (opt == "--out") {
 			out = option_str[++i];
 		}
-		else if (_strcmpi(option_str[i], "--verbose") == 0) {
+		else if (opt == "--verbose") {
 			verbose = true;
 		}
-		else if (_strcmpi(option_str[i], "--chr") == 0) {
+		else if (opt == "--chr") {
 			chr = (unsigned short)stoi(option_str[++i]);
 		}
-		else if (_strcmpi(option_str[i], "--top_snp") == 0) {
+		else if (opt == "--top_snp") {
 			top_snp = stoi(option_str[++i]);
 			if (top_snp < 1 || top_snp > 10000) {
 				top_snp = (top_snp <= 1 ? 1 : top_snp >= 10000 ? 10000 : top_snp);
 			}
 		}
-		else if (_strcmpi(option_str[i], "--ld_window") == 0) {
+		else if (opt == "--ld_window") {
 			ld_window = stoi(option_str[++i]);
 			if (ld_window > 100000) {
 				cout << "LD window was set too high, capping at 100,000." << endl;
@@ -127,25 +122,25 @@ void option(int option_num, char* option_str[])
 			}
 			ld_window *= 1000;
 		}
-		else if (_strcmpi(option_str[i], "--collinear") == 0) {
+		else if (opt == "--collinear") {
 			collinear = stod(option_str[++i]);
 			if (collinear < 0.01 || collinear > 0.99) {
 				cout << "Collinearity check should be in the range (0.01, 0.99), capping value given within this range." << endl;
 				collinear = (collinear <= 0.01 ? 0.01 : collinear >= 0.99 ? 0.99 : collinear);
 			}
 		}
-		else if (_strcmpi(option_str[i], "--maf") == 0) {
+		else if (opt == "--maf") {
 			maf = stod(option_str[++i]);
 			if (maf < 0.0 || maf > 0.5) {
 				cout << "MAF flag should be within the range of (0.0, 0.5). Clipping to be within this range." << endl;
 				maf = (maf < 0.0 ? 0.0 : maf > 0.5 ? 0.5 : maf);
 			}
 		}
-		else if (_strcmpi(option_str[i], "--actual_geno") == 0) {
+		else if (opt == "--actual_geno") {
 			actual_geno = false;
 			cout << "!!!Remove me!!!." << endl;
 		}
-		else if (_strcmpi(option_str[i], "--freq_threshold") == 0) {
+		else if (opt == "--freq_threshold") {
 			freq_threshold = stod(option_str[++i]);
 			if (freq_threshold < 0.0 || freq_threshold > 1.0) {
 				cout << "Allele frequency threshold is not within the range of (0.0, 1.0). Clipping to be within this range." << endl;
