@@ -284,8 +284,8 @@ bool cond_analysis::insert_B_Z(const vector<size_t> &idx, size_t pos, reference 
 				}
 			}
 			else {
-				double ins_row_val = get_ins_row ? 1.0 : 0.0,
-					ins_col_val = get_ins_col ? 1.0 : 0.0;
+				size_t ins_row_val = get_ins_row ? 1 : 0,
+					ins_col_val = get_ins_col ? 1 : 0;
 				if (B_temp.coeff(i - ins_row_val, j - ins_col_val) != 0) {
 					B.insertBack(i, j) = B_temp.coeff(i - ins_row_val, j - ins_col_val);
 					B_N.insertBack(i, j) = B_N_temp.coeff(i - ins_row_val, j - ins_col_val);
@@ -348,7 +348,7 @@ bool cond_analysis::insert_B_Z(const vector<size_t> &idx, size_t pos, reference 
 				get_ins_row = true;
 			}
 			else {
-				double ins_row_val = get_ins_row ? 1.0 : 0.0;
+				size_t ins_row_val = get_ins_row ? 1 : 0;
 				if (Z_temp.coeff(i - ins_row_val, j) != 0) {
 					Z.insertBack(i, j) = Z_temp.coeff(i - ins_row_val, j);
 					Z_N.insertBack(i, j) = Z_N_temp.coeff(i - ins_row_val, j);
@@ -383,7 +383,7 @@ void cond_analysis::erase_B_and_Z(const vector<size_t> &idx, size_t erase)
 
 		B.startVec(j - get_ins_col);
 		B_N.startVec(j - get_ins_col);
-		D_N[j - (get_ins_col ? 1.0 : 0.0)] = msx[idx[j]] * nD[idx[j]];
+		D_N[j - (get_ins_col ? 1 : 0)] = msx[idx[j]] * nD[idx[j]];
 		get_ins_row = get_ins_col;
 
 		for (i = j; i < i_size; i++) {
@@ -393,8 +393,8 @@ void cond_analysis::erase_B_and_Z(const vector<size_t> &idx, size_t erase)
 			}
 
 			if (B_dense.coeff(i, j) != 0) {
-				double ins_row_val = get_ins_row ? 1.0 : 0.0,
-					ins_col_val = get_ins_col ? 1.0 : 0.0;
+				size_t ins_row_val = get_ins_row ? 1 : 0,
+					ins_col_val = get_ins_col ? 1 : 0;
 				B.insertBack(i - ins_row_val, j - ins_col_val) = B_dense.coeff(i, j);
 				B_N.insertBack(i - ins_row_val, j - ins_col_val) = B_N_dense.coeff(i, j);
 			}
@@ -430,7 +430,7 @@ void cond_analysis::erase_B_and_Z(const vector<size_t> &idx, size_t erase)
 			}
 
 			if (Z_temp.coeff(i, j) != 0) {
-				double ins_row_val = get_ins_row ? 1.0 : 0.0;
+				size_t ins_row_val = get_ins_row ? 1 : 0;
 				Z.insertBack(i - ins_row_val, j) = Z_temp.coeff(i, j);
 				Z_N.insertBack(i - ins_row_val, j) = Z_N_temp.coeff(i, j);
 			}
