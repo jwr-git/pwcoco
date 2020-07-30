@@ -61,7 +61,7 @@ void option(int option_num, char* option_str[])
 		phen1_file = "", phen2_file = "",
 		out = "", snplist = "",
 		opt;
-	bool verbose = true, actual_geno = false;
+	bool verbose = true;
 
 	/*
 	 * Read through option flags given by user.
@@ -135,10 +135,6 @@ void option(int option_num, char* option_str[])
 				cout << "MAF flag should be within the range of (0.0, 0.5). Clipping to be within this range." << endl;
 				maf = (maf < 0.0 ? 0.0 : maf > 0.5 ? 0.5 : maf);
 			}
-		}
-		else if (opt == "--actual_geno") {
-			actual_geno = false;
-			cout << "!!!Remove me!!!." << endl;
 		}
 		else if (opt == "--freq_threshold") {
 			freq_threshold = stod(option_str[++i]);
@@ -220,11 +216,11 @@ void option(int option_num, char* option_str[])
 		ref->filter_snp_maf(maf);
 
 	// Find each independent SNPs for both exposure and outcome data
-	cond_analysis *exp_analysis = new cond_analysis(p_cutoff, collinear, ld_window, out, verbose, top_snp, actual_geno, freq_threshold, "exposure");
+	cond_analysis *exp_analysis = new cond_analysis(p_cutoff, collinear, ld_window, out, verbose, top_snp, freq_threshold, "exposure");
 	exp_analysis->init_conditional(exposure, ref);
 	exp_analysis->find_independent_snps(ref);
 
-	cond_analysis *out_analysis = new cond_analysis(p_cutoff, collinear, ld_window, out, verbose, top_snp, actual_geno, freq_threshold, "outcome");
+	cond_analysis *out_analysis = new cond_analysis(p_cutoff, collinear, ld_window, out, verbose, top_snp, freq_threshold, "outcome");
 	out_analysis->init_conditional(outcome, ref);
 	out_analysis->find_independent_snps(ref);
 

@@ -3,7 +3,7 @@
 /*
  * cond_analysis constructor
  */
-cond_analysis::cond_analysis(double p_cutoff, double collinear, double ld_window, string out, bool verbose, double top_snp, bool actual_geno, double freq_thres, string name)
+cond_analysis::cond_analysis(double p_cutoff, double collinear, double ld_window, string out, bool verbose, double top_snp, double freq_thres, string name)
 {
 	cname = name;
 	a_out = out;
@@ -11,7 +11,6 @@ cond_analysis::cond_analysis(double p_cutoff, double collinear, double ld_window
 	a_collinear = collinear;
 	a_ld_window = ld_window;
 	a_verbose = verbose;
-	a_actual_geno = actual_geno;
 	a_freq_threshold = freq_thres;
 
 	a_top_snp = (top_snp < 0 ? 1e10 : top_snp);
@@ -30,7 +29,6 @@ cond_analysis::cond_analysis()
 	a_collinear = 0.9;
 	a_ld_window = 1e7;
 	a_verbose = true;
-	a_actual_geno = false;
 	a_freq_threshold = 0.2;
 
 	a_top_snp = -1;
@@ -67,16 +65,10 @@ void cond_analysis::init_conditional(phenotype *pheno, reference *ref)
 		msx_b[i] = x.squaredNorm() / (double)m;
 	}
 
-	if (a_actual_geno) {
-		msx = msx_b;
-		nD = ja_N_outcome;
-	}
-	else {
-		msx = 2.0 * ja_freq.array() * (1.0 - ja_freq.array());
+	msx = 2.0 * ja_freq.array() * (1.0 - ja_freq.array());
 
-		for (i = 0; i < n; i++) {
-			nD[i] = (jma_Vp - msx[i] * ja_beta[i] * ja_beta[i]) / (msx[i] * ja_beta_se[i] * ja_beta_se[i]) + 1;
-		}
+	for (i = 0; i < n; i++) {
+		nD[i] = (jma_Vp - msx[i] * ja_beta[i] * ja_beta[i]) / (msx[i] * ja_beta_se[i] * ja_beta_se[i]) + 1;
 	}
 }
 
@@ -279,8 +271,7 @@ bool cond_analysis::insert_B_Z(const vector<size_t> &idx, size_t pos, reference 
 				get_ins_row = true;
 
 			if (pos == ix[j] || pos == ix[i]) {
-				if (a_actual_geno 
-					|| (ref->bim_chr[to_include[ix[i]]] == ref->bim_chr[to_include[ix[j]]]
+				if ((ref->bim_chr[to_include[ix[i]]] == ref->bim_chr[to_include[ix[j]]]
 						&& abs(ref->bim_bp[to_include[ix[i]]] - ref->bim_bp[to_include[ix[j]]]) < a_ld_window)
 					)
 				{
@@ -342,8 +333,7 @@ bool cond_analysis::insert_B_Z(const vector<size_t> &idx, size_t pos, reference 
 		makex_eigenVector(j, x_j, false, ref);
 		for (i = 0; i < ix.size(); i++) {
 			if (pos == ix[i]) {
-				if (a_actual_geno 
-					|| (ix[i] != j 
+				if ((ix[i] != j 
 						&& ref->bim_chr[to_include[ix[i]]] == ref->bim_chr[to_include[j]]
 						&& abs(ref->bim_bp[to_include[ix[i]]] - ref->bim_bp[to_include[j]]) < a_ld_window)
 					)
@@ -525,8 +515,6 @@ void cond_analysis::massoc_conditional(const vector<size_t> &selected, vector<si
 		se[i] = ja_beta_se[selected[i]];
 	}
 	eigenVector bJ1 = B_N_i * D_N.asDiagonal() * b;
-	if (a_actual_geno)
-		jma_Ve = massoc_calcu_Ve(selected, bJ1, b);
 
 	eigenVector Z_Bi(n), Z_Bi_temp(n);
 	bC = eigenVector::Zero(m);
@@ -543,10 +531,7 @@ void cond_analysis::massoc_conditional(const vector<size_t> &selected, vector<si
 				bC_se[i] = 1.0 / B2; //(B2 - Z_N.col(j).dot(Z_Bi)) / (B2 * B2);
 			}
 		}
-		if (a_actual_geno)
-			bC_se[i] *= jma_Ve - (B2 * bC[i] * ja_beta[j]) / (nD[j] - n - 1);
-		else
-			bC_se[i] *= jma_Ve;
+		bC_se[i] *= jma_Ve;
 		if (bC_se[i] > 1e-10 * jma_Vp) {
 			bC_se[i] = sqrt(bC_se[i]);
 			chisq = bC[i] / bC_se[i];
@@ -630,8 +615,7 @@ bool cond_analysis::init_b(const vector<size_t> &idx, reference *ref)
 		makex_eigenVector(idx[i], x_i, false, ref);
 
 		for (j = i + 1; j < i_size; j++) {
-			if (a_actual_geno
-				|| (ref->bim_chr[to_include[idx[i]]] == ref->bim_chr[to_include[idx[j]]]
+			if ((ref->bim_chr[to_include[idx[i]]] == ref->bim_chr[to_include[idx[j]]]
 					&& abs(ref->bim_bp[to_include[idx[i]]] - ref->bim_bp[to_include[idx[j]]]) < a_ld_window)
 				)
 			{
@@ -683,8 +667,7 @@ void cond_analysis::init_z(const vector<size_t> &idx, reference *ref)
 
 		makex_eigenVector(j, x_j, false, ref);
 		for (i = 0; i < i_size; i++) {
-			if (a_actual_geno
-				|| (idx[i] != j 
+			if ((idx[i] != j 
 					&& ref->bim_chr[to_include[idx[i]]] == ref->bim_chr[to_include[j]]
 					&& abs(ref->bim_bp[to_include[idx[i]]] - ref->bim_bp[to_include[j]]) < a_ld_window)
 				)
@@ -723,8 +706,6 @@ void cond_analysis::massoc_joint(const vector<size_t> &idx, eigenVector &bJ, eig
 	bJ = B_N_i * D_N.asDiagonal() * b;
 	bJ_se = B_N_i.diagonal();
 	pJ = eigenVector::Ones(n);
-	if (a_actual_geno)
-		jma_Ve = massoc_calcu_Ve(idx, bJ, b);
 	bJ_se *= jma_Ve;
 	for (i = 0; i < n; i++) {
 		if (bJ_se[i] > 1.0e-30) {

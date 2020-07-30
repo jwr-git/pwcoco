@@ -41,7 +41,7 @@ enum cond_type {
 
 class cond_analysis {
 public:
-	cond_analysis(double p_cutoff, double collinear, double ld_window, string out, bool verbose, double top_snp, bool actual_geno, double freq_thres, string name);
+	cond_analysis(double p_cutoff, double collinear, double ld_window, string out, bool verbose, double top_snp, double freq_thres, string name);
 	cond_analysis();
 
 	bool coloc_ready() {
@@ -105,9 +105,9 @@ private:
 	eigenVector ja_chisq;
 	eigenVector ja_N_outcome;
 
-	eigenVector msx; /// What am I?
-	eigenVector msx_b; /// What am I?
-	eigenVector nD; /// What am I?
+	eigenVector msx; 
+	eigenVector msx_b; 
+	eigenVector nD; 
 
 	string cname;
 
@@ -115,7 +115,6 @@ private:
 	double a_top_snp;
 	double a_p_cutoff;
 	bool a_verbose;
-	bool a_actual_geno;
 	double a_freq_threshold;
 	int num_snps;
 
