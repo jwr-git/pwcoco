@@ -422,7 +422,7 @@ void reference::sanitise_list()
  */
 void reference::read_famfile(string famfile)
 {
-	string line;
+	string line, tstr;
 	int count = 0;
 
 	// Prepare for bim reading
@@ -433,7 +433,25 @@ void reference::read_famfile(string famfile)
 	cout << "Reading data from fam file: " + famfile + "." << endl;
 	fam_clear();
 
-	// Iterate through bim file and save data
+	while (fam) {
+		fam >> tstr;
+		if (fam.eof()) break;
+		fam_fid.push_back(tstr);
+		fam >> tstr;
+		fam_iid.push_back(tstr);
+		fam >> tstr;
+		fam_fa_id.push_back(tstr);
+		fam >> tstr;
+		fam_mo_id.push_back(tstr);
+		fam >> tstr;
+		fam_sex.push_back(atoi(tstr.c_str()));
+		fam >> tstr;
+		fam_pheno.push_back(atoi(tstr.c_str()));
+
+	}
+
+	/* Slow
+	// Iterate through fam file and save data
 	while (getline(fam, line)) {
 		istringstream ss(line);
 		string substr;
@@ -465,6 +483,7 @@ void reference::read_famfile(string famfile)
 		}
 		count = 0;
 	}
+	*/
 	fam.close();
 
 	individuals = fam_fid.size();
@@ -610,6 +629,7 @@ void reference::read_bedfile(string bedfile)
 	char ch[1];
 	bitset<8> b;
 	fstream BIT(bedfile.c_str(), ios::in | ios::binary);
+	cout << "Reading .bed file..." << endl;
 
 	get_read_individuals(read_individuals);
 	get_read_snps(read_snps);
