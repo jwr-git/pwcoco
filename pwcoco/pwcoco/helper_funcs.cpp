@@ -42,7 +42,12 @@ void checkEntry(std::string txt, double *val)
 		*val = -1;
 	}
 	else {
-		*val = stod(txt);
+		try {
+			*val = stod(txt);
+		}
+		catch (...) {
+			*val = -1;
+		}
 	}
 }
 

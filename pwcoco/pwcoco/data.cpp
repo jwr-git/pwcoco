@@ -558,7 +558,6 @@ void reference::filter_snp_maf(double maf)
  */
 void reference::calculate_allele_freq()
 {
-	size_t i = 0, j = 0;
 	const size_t fam_ids_size = fam_ids_inc.size(),
 		bim_ids_size = to_include.size();
 
@@ -567,10 +566,10 @@ void reference::calculate_allele_freq()
 	mu.resize(num_snps);
 
 #pragma omp parallel for
-	for (i = 0; i < bim_ids_size; i++) {
+	for (int i = 0; i < bim_ids_size; i++) {
 		double fcount = 0.0, f = 0.0;
 
-		for (j = 0; j < fam_ids_size; j++) {
+		for (int j = 0; j < fam_ids_size; j++) {
 			if (!bed_snp_1[to_include[i]][fam_ids_inc[j]] || bed_snp_2[to_include[i]][fam_ids_inc[j]]) {
 				double snp1 = bed_snp_1[to_include[i]][fam_ids_inc[j]] ? 1.0 : 0.0,
 					snp2 = bed_snp_2[to_include[i]][fam_ids_inc[j]] ? 1.0 : 0.0;
@@ -646,10 +645,10 @@ void reference::read_bedfile(string bedfile)
 
 	bed_snp_1.resize(bim_size);
 	bed_snp_2.resize(bim_size);
-	//for (i = 0; i < bim_size; i++) {
-	//	bed_snp_1[i].reserve(fam_size);
-	//	bed_snp_2[i].reserve(fam_size);
-	//}
+	for (i = 0; i < bim_size; i++) {
+		bed_snp_1[i].resize(fam_size);
+		bed_snp_2[i].resize(fam_size);
+	}
 
 	for (i = 0; i < 3; i++) {
 		BIT.read(ch, 1); // First three bytes are used for the file format and are not read
@@ -660,8 +659,6 @@ void reference::read_bedfile(string bedfile)
 		// 11: homozygote BB
 		// 01: missing
 		// 10: heterozygous
-		bed_snp_1[i].resize(fam_size);
-		bed_snp_2[i].resize(fam_size);
 		
 		// SNP not found
 		if (read_snps[i] == 0) {

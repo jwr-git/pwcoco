@@ -43,7 +43,7 @@ cond_analysis::cond_analysis()
  */
 void cond_analysis::init_conditional(phenotype *pheno, reference *ref)
 {
-	size_t i = 0, j = 0;
+	size_t j = 0;
 	size_t n, m;
 
 	// First match the datasets
@@ -59,7 +59,7 @@ void cond_analysis::init_conditional(phenotype *pheno, reference *ref)
 	nD.resize(n);
 
 #pragma omp parallel for
-	for (i = 0; i < n; i++) {
+	for (int i = 0; i < n; i++) {
 		eigenVector x;
 		makex_eigenVector(i, x, true, ref);
 		msx_b[i] = x.squaredNorm() / (double)m;
@@ -67,7 +67,7 @@ void cond_analysis::init_conditional(phenotype *pheno, reference *ref)
 
 	msx = 2.0 * ja_freq.array() * (1.0 - ja_freq.array());
 
-	for (i = 0; i < n; i++) {
+	for (int i = 0; i < n; i++) {
 		nD[i] = (jma_Vp - msx[i] * ja_beta[i] * ja_beta[i]) / (msx[i] * ja_beta_se[i] * ja_beta_se[i]) + 1;
 	}
 }
@@ -564,15 +564,14 @@ double cond_analysis::massoc_calcu_Ve(const vector<size_t> &selected, eigenVecto
 
 void cond_analysis::makex_eigenVector(size_t j, eigenVector &x, bool resize, reference *ref)
 {
-	size_t i = 0,
-		n = fam_ids_inc.size(),
+	size_t n = fam_ids_inc.size(),
 		m = to_include.size();
 
 	if (resize)
 		x.resize(n);
 
 #pragma omp parallel for
-	for (i = 0; i < n; i++) {
+	for (int i = 0; i < n; i++) {
 		if (!ref->bed_snp_1[to_include[j]][fam_ids_inc[i]] || ref->bed_snp_2[to_include[j]][fam_ids_inc[i]])
 		{
 			double snp1 = ref->bed_snp_1[to_include[j]][fam_ids_inc[i]] ? 1.0 : 0.0,

@@ -231,10 +231,10 @@ void option(int option_num, char* option_str[])
 #pragma omp parallel
 	{
 #pragma omp for
-		for (size_t i = 0; i < exp_analysis->get_num_ind(); i++)
+		for (int i = 0; i < exp_analysis->get_num_ind(); i++)
 		{
 			exp_analysis->pw_conditional(exp_analysis->get_num_ind() > 1 ? (int)i : -1, ref); // Be careful not to remove the only independent SNP
-			for (size_t j = 0; j < out_analysis->get_num_ind(); j++)
+			for (int j = 0; j < out_analysis->get_num_ind(); j++)
 			{
 				out_analysis->pw_conditional(out_analysis->get_num_ind() > 1 ? (int)j : -1, ref);
 
