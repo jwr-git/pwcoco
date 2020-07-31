@@ -647,10 +647,10 @@ void reference::read_bedfile(string bedfile)
 
 	bed_snp_1.resize(bim_size);
 	bed_snp_2.resize(bim_size);
-	for (i = 0; i < bim_size; i++) {
-		bed_snp_1[i].reserve(fam_size);
-		bed_snp_2[i].reserve(fam_size);
-	}
+	//for (i = 0; i < bim_size; i++) {
+	//	bed_snp_1[i].reserve(fam_size);
+	//	bed_snp_2[i].reserve(fam_size);
+	//}
 
 	for (i = 0; i < 3; i++) {
 		BIT.read(ch, 1); // First three bytes are used for the file format and are not read
@@ -661,6 +661,8 @@ void reference::read_bedfile(string bedfile)
 		// 11: homozygote BB
 		// 01: missing
 		// 10: heterozygous
+		bed_snp_1[i].resize(fam_size);
+		bed_snp_2[i].resize(fam_size);
 		
 		// SNP not found
 		if (read_snps[i] == 0) {
