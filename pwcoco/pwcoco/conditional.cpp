@@ -824,12 +824,15 @@ void cond_analysis::pw_conditional(int pos, reference *ref)
 	Z = Z_master;
 	Z_N = Z_N_master;
 
-	// Exclude SNP from conditional
+	// Exclude SNPs from conditional
 	if (pos >= 0) {
-		pos = (size_t)pos;
-		remain.push_back(selected[pos]);
-		erase_B_and_Z(selected, selected[pos]);
-		selected.erase(selected.begin() + pos); // Expensive!
+		for (size_t i = 0; i < num_ind_snps; i++) {
+			if (i == (size_t)pos)
+				continue;
+			remain.push_back(selected[i]);
+			erase_B_and_Z(selected, selected[i]);
+			selected.erase(selected.begin() + i); // Expensive!
+		}
 	}
 
 	massoc_conditional(selected, remain, bC, bC_se, pC, ref);
