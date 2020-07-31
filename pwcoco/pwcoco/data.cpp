@@ -568,7 +568,6 @@ void reference::calculate_allele_freq()
 
 #pragma omp parallel for
 	for (i = 0; i < bim_ids_size; i++) {
-		cout << "Number of threads in the current parallel region is " << omp_get_num_threads() << endl;
 		double fcount = 0.0, f = 0.0;
 
 		for (j = 0; j < fam_ids_size; j++) {
