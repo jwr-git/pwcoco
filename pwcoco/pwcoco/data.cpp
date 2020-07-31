@@ -566,7 +566,7 @@ void reference::calculate_allele_freq()
 	mu.clear();
 	mu.resize(num_snps);
 
-#pragma omp parallel for default(none) shared(bim_ids_size, fam_ids_size, bed_snp_1, bed_snp_2, bim_allele2, ref_a, to_include, fam_ids_inc) private(i, j) reduction (+:sum)
+#pragma omp parallel for
 	cout << "Number of threads in the current parallel region is " << omp_get_num_threads() << endl;
 	for (i = 0; i < bim_ids_size; i++) {
 		double fcount = 0.0, f = 0.0;
