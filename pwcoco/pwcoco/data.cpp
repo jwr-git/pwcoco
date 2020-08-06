@@ -365,7 +365,58 @@ void reference::read_bimfile(string bimfile)
 	other_A = bim_allele2;
 	
 	cout << "Number of SNPs read from .bim file: " << num_snps << "." << endl;
-	sanitise_list();
+}
+
+/*
+ * Matches .bim data to the matched data from the initial coloc analysis
+ * Doing this early cuts down on the memory and processing footprint of the program.
+ */
+void reference::match_bim(vector<string> &names, vector<string> &names2)
+{
+	// Temporary containers
+	vector<string> bim_snp_name_t,
+		bim_allele1_t,
+		bim_allele2_t;
+	vector<int> bim_chr_t,
+		bim_bp_t;
+	vector<double> bim_genet_dst_t;
+	vector<int> positions;
+	vector<string> snp_names = names;
+	
+	copy(names2.begin(), names2.end(), back_inserter(snp_names));
+	v_remove_dupes(snp_names);
+
+	positions.resize(snp_names.size());
+	fill(positions.begin(), positions.end(), -1);
+#pragma omp parallel for
+	for (int i = 0; i < snp_names.size(); ++i) {
+		vector<string>::iterator it;
+		if ((it = find(bim_snp_name.begin(), bim_snp_name.end(), snp_names[i])) == bim_snp_name.end())
+			continue;
+		positions[i] = (int)(it - bim_snp_name.begin());
+	}
+	bim_og_pos = v_remove_nans(positions);
+
+	for (auto &p : bim_og_pos) {
+		bim_snp_name_t.push_back(bim_snp_name[p]);
+		bim_allele1_t.push_back(bim_allele1[p]);
+		bim_allele2_t.push_back(bim_allele2[p]);
+		bim_chr_t.push_back(bim_chr[p]);
+		bim_bp_t.push_back(bim_bp[p]);
+		bim_genet_dst_t.push_back(bim_genet_dst[p]);
+	}
+	bim_snp_name.swap(bim_snp_name_t);
+	bim_allele1.swap(bim_allele1_t);
+	bim_allele2.swap(bim_allele2_t);
+	bim_chr.swap(bim_chr_t);
+	bim_bp.swap(bim_bp_t);
+	bim_genet_dst.swap(bim_genet_dst_t);
+
+	num_snps_matched = bim_chr.size();
+	ref_A = bim_allele1;
+	other_A = bim_allele2;
+
+	cout << "Number of SNPs matched from .bim file to the phenotype data: " << num_snps_matched << "." << endl;
 }
 
 /*
@@ -388,28 +439,28 @@ void reference::bim_clear() {
 void reference::sanitise_list()
 {
 	size_t i;
-
 	to_include.clear();
-	to_include.resize(num_snps);
+	to_include.resize(num_snps_matched);
 	snp_map.clear();
 
-	for (i = 0; i < num_snps; i++) {
+	for (i = 0; i < num_snps_matched; ++i) {
 		stringstream ss;
-		to_include[i] = i;
+		to_include[i] = bim_og_pos[i];
 
 		if (snp_map.find(bim_snp_name[i]) != snp_map.end()) {
-			//ShowWarning("Duplicated SNP ID \"" + bim_snp_name[i] + "\".", a_verbose);
+			cout << "Duplicated SNP ID (pos = " << i << "), name: " << bim_snp_name[i] << endl;
 
 			ss << bim_snp_name[i] << "_" << i + 1;
 			bim_snp_name[i] = ss.str();
 
-			//ShowWarning("This SNP has been changed to \"" + bim_snp_name[i] + "\".", a_verbose);
+			ShowWarning("This SNP has been changed to \"" + bim_snp_name[i] + "\".", a_verbose);
 		}
 		else
 			ss << bim_snp_name[i];
 
 		snp_map.insert(pair<string, size_t>(ss.str(), i));
 	}
+	//stable_sort(to_include.begin(), to_include.end());
 }
 
 /*
@@ -530,6 +581,8 @@ void reference::filter_snp_maf(double maf)
 {
 	map<string, size_t> id_map(snp_map);
 	map<string, size_t>::iterator it, end = id_map.end();
+	vector<size_t> bad_idx;
+	vector<double> bad_maf;
 	size_t prev_size = to_include.size();
 	double f = 0.0;
 
@@ -540,8 +593,11 @@ void reference::filter_snp_maf(double maf)
 
 	for (it = id_map.begin(); it != end; ++it) {
 		f = mu[it->second] * 0.5;
-		if (f <= maf || (1.0 - f) <= maf)
+		if (f <= maf || (1.0 - f) <= maf) {
+			bad_idx.push_back(it->second);
+			bad_maf.push_back(f);
 			continue;
+		}
 		snp_map.insert(*it);
 		to_include.push_back(it->second);
 	}
@@ -549,7 +605,7 @@ void reference::filter_snp_maf(double maf)
 	if (to_include.size() == 0)
 		ShowError("Data Error: After MAF filtering, no SNPs are retained for the analysis.");
 
-	stable_sort(to_include.begin(), to_include.end());
+	//stable_sort(to_include.begin(), to_include.end());
 	cout << "After filtering based on MAF, there are " << to_include.size() << " SNPs remaining in the analysis (amount removed: " << prev_size - to_include.size() << ")." << endl;
 }
 
@@ -558,31 +614,28 @@ void reference::filter_snp_maf(double maf)
  */
 void reference::calculate_allele_freq()
 {
-	const size_t fam_ids_size = fam_ids_inc.size(),
-		bim_ids_size = to_include.size();
+	const size_t n = to_include.size(),
+		m = fam_ids_inc.size();
 
 	cout << "Calculating allele frequencies from .fam data." << endl;
 	mu.clear();
-	mu.resize(num_snps);
+	mu.resize(n);
 
 #pragma omp parallel for
-	for (int i = 0; i < bim_ids_size; i++) {
-		double fcount = 0.0, f = 0.0;
-
-		for (int j = 0; j < fam_ids_size; j++) {
-			if (!bed_snp_1[to_include[i]][fam_ids_inc[j]] || bed_snp_2[to_include[i]][fam_ids_inc[j]]) {
-				double snp1 = bed_snp_1[to_include[i]][fam_ids_inc[j]] ? 1.0 : 0.0,
-					snp2 = bed_snp_2[to_include[i]][fam_ids_inc[j]] ? 1.0 : 0.0;
-				f = snp1 + snp2;
-				if (bim_allele2[to_include[i]] == ref_A[to_include[i]])
+	for (int i = 0; i < n; i++) {
+		double fcount = 0.0;
+		for (int j = 0; j < m; j++) {
+			if (!bed_snp_1[i][fam_ids_inc[j]] || bed_snp_2[i][fam_ids_inc[j]]) {
+				double f = bed_snp_1[i][fam_ids_inc[j]] + bed_snp_2[i][fam_ids_inc[j]];
+				if (bim_allele2[i] == ref_A[i])
 					f = 2.0 - f;
-				mu[to_include[i]] += f;
+				mu[i] += f;
 				fcount += 1.0;
 			}
 		}
 
 		if (fcount > 0.0)
-			mu[to_include[i]] /= fcount;
+			mu[i] /= fcount;
 	}
 }
 
@@ -595,18 +648,6 @@ void reference::get_read_individuals(vector<int> &read_individuals)
 			read_individuals[i] = 1;
 		else
 			read_individuals[i] = 0;
-	}
-}
-
-void reference::get_read_snps(vector<int> &read_snps)
-{
-	read_snps.clear();
-	read_snps.resize(num_snps);
-	for (int i = 0; i < num_snps; i++) {
-		if (snp_map.find(bim_snp_name[i]) != snp_map.end())
-			read_snps[i] = 1;
-		else
-			read_snps[i] = 0;
 	}
 }
 
@@ -623,7 +664,7 @@ void reference::read_bedfile(string bedfile)
 		snp_idx, ind_idx;
 	const size_t bim_size = to_include.size(),
 		fam_size = fam_ids_inc.size();
-	vector<int> read_individuals, read_snps;
+	vector<int> read_individuals;
 	
 	char ch[1];
 	bitset<8> b;
@@ -631,7 +672,6 @@ void reference::read_bedfile(string bedfile)
 	cout << "Reading .bed file..." << endl;
 
 	get_read_individuals(read_individuals);
-	get_read_snps(read_snps);
 
 	if (!bim_size || !fam_size) {
 		ShowError("No data from either .bim or .fam files to continue with.");
@@ -643,12 +683,15 @@ void reference::read_bedfile(string bedfile)
 		return;
 	}
 
-	bed_snp_1.resize(bim_size);
-	bed_snp_2.resize(bim_size);
-	for (i = 0; i < bim_size; i++) {
-		bed_snp_1[i].resize(fam_size);
-		bed_snp_2[i].resize(fam_size);
-	}
+	vector<vector<bool>>snp_1(bim_size, vector<bool>(fam_size, false));
+	vector<vector<bool>>snp_2(bim_size, vector<bool>(fam_size, false));
+
+	//bed_snp_1.resize(bim_size);
+	//bed_snp_2.resize(bim_size);
+	//for (i = 0; i < bim_size; i++) {
+	//	bed_snp_1[i].resize(fam_size);
+	//	bed_snp_2[i].resize(fam_size);
+	//}
 
 	for (i = 0; i < 3; i++) {
 		BIT.read(ch, 1); // First three bytes are used for the file format and are not read
@@ -657,16 +700,18 @@ void reference::read_bedfile(string bedfile)
 	for (i = 0, snp_idx = 0; i < num_snps; i++) {
 		// 00: homozygote AA
 		// 11: homozygote BB
-		// 01: missing
-		// 10: heterozygous
+		// 10: missing
+		// 01: heterozygous
 		
-		// SNP not found
-		if (read_snps[i] == 0) {
+		// SNP not found in the matched SNP list
+		vector<size_t>::iterator it;
+		if ((it = find(to_include.begin(), to_include.end(), i)) == to_include.end()) {
 			for (j = 0; j < individuals; j += 4)
 				BIT.read(ch, 1);
 			continue;
 		}
 
+		snp_idx = it - to_include.begin();
 		// SNP found - calculator allele frequency
 		for (j = 0, ind_idx = 0; j < individuals;) {
 			BIT.read(ch, 1);
@@ -679,21 +724,24 @@ void reference::read_bedfile(string bedfile)
 				if (read_individuals[j] == 0)
 					k += 2;
 				else {
-					bed_snp_2[snp_idx][ind_idx] = (!b[k++]);
-					bed_snp_1[snp_idx][ind_idx] = (!b[k++]);
+					snp_2[snp_idx][ind_idx] = (!b[k++]);
+					snp_1[snp_idx][ind_idx] = (!b[k++]);
 					ind_idx++;
 				}
 				j++;
 			}
 		}
 
-		if (snp_idx == bim_size)
-			break;
-		snp_idx++;
+		//if (snp_idx == bim_size)
+		//	break;
+		//snp_idx++;
 	}
 
 	BIT.clear();
 	BIT.close();
+
+	bed_snp_1.swap(snp_1);
+	bed_snp_2.swap(snp_2);
 
 	cout << "Genotype data for " << fam_size << " individuals and " << bim_size << " SNPs read." << endl;
 }
@@ -719,7 +767,7 @@ void reference::update_inclusion(const vector<size_t> idx, const vector<string> 
 	for (iter = snp_map_keep.begin(); iter != snp_map_keep.end(); iter++) {
 		to_include.push_back(iter->second);
 	}
-	stable_sort(to_include.begin(), to_include.end());
+	//stable_sort(to_include.begin(), to_include.end());
 }
 
 /*

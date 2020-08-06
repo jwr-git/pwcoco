@@ -81,8 +81,8 @@ void cond_analysis::match_gwas_phenotype(phenotype *pheno, reference *ref)
 	size_t i = 0;
 	map<string, size_t>::iterator iter;
 	map<string, size_t> id_map;
-	vector<size_t> idx, pheno_idx;
-	vector<string> snps;
+	vector<size_t> idx, pheno_idx, bad_idx;
+	vector<string> snps, pheno_snps = pheno->get_snp_names();
 	unsigned int unmatched = 0;
 
 	to_include.clear();
@@ -90,15 +90,19 @@ void cond_analysis::match_gwas_phenotype(phenotype *pheno, reference *ref)
 
 	// Match GWAS data to reference data and initialise the inclusion list
 	//ref->update_inclusion(pheno->matched_idx, pheno->snp_name);
-	for (i = 0; i < pheno->snp_name.size(); i++) {
-		if ((iter = ref->snp_map.find(pheno->snp_name[i])) == ref->snp_map.end()
+	for (i = 0; i < pheno_snps.size(); i++) {
+		if ((iter = ref->snp_map.find(pheno_snps[i])) == ref->snp_map.end()
 			|| (pheno->allele1[i] != ref->bim_allele1[iter->second] && (pheno->allele1[i] != ref->bim_allele2[iter->second]))
 			)
 		{
+			if (iter != ref->snp_map.end()) {
+				unmatched++;
+				bad_idx.push_back(iter->second);
+			}
 			continue;
 		}
 		pheno_idx.push_back(i);
-		id_map.insert(pair<string, size_t>(pheno->snp_name[i], i));
+		id_map.insert(pair<string, size_t>(pheno_snps[i], i));
 		snps.push_back(iter->first);
 		idx.push_back(iter->second);
 	}
@@ -137,11 +141,21 @@ void cond_analysis::match_gwas_phenotype(phenotype *pheno, reference *ref)
 		}
 		else {
 			unmatched++;
+			bad_idx.push_back(ref->to_include[i]);
 		}
 	}
 
 	if (unmatched) {
 		cout << "[" << pheno->get_phenoname() << "] There were " << unmatched << " SNPs that had a large difference in the allele frequency to that of the reference sample." << endl;
+		string filename = a_out + "." + pheno->get_phenoname() + ".badfreq";
+		ofstream file(filename.c_str());
+
+		file << "SNP\tAllele1\tAllele2\tRefA\tfreq_ref\tfreq_pheno" << endl;
+		for (i = 0; i < bad_idx.size(); i++) {
+			double freq = (iter = id_map.find(ref->bim_snp_name[bad_idx[i]])) == id_map.end() ? -1.0 : pheno->freq[iter->second];
+			file << ref->bim_snp_name[bad_idx[i]] << "\t" << ref->bim_allele1[bad_idx[i]] << "\t" << ref->bim_allele2[bad_idx[i]] << "\t" << ref->ref_A[bad_idx[i]] << "\t" << mu[bad_idx[i]] / 2.0 << "\t" << freq << endl;
+		}
+		file.close();
 	}
 
 	ref->update_inclusion(idx, snps);
@@ -175,16 +189,14 @@ void cond_analysis::match_gwas_phenotype(phenotype *pheno, reference *ref)
 		ja_N_outcome[i] = pheno->n[idx[i]];
 	}
 
-	for (i = 0; i < to_include.size(); i++) {
-		string filename = a_out + "." + pheno->get_phenoname() + ".badsnps";
-		ofstream file(filename.c_str());
+	string filename = a_out + "." + pheno->get_phenoname() + ".included";
+	ofstream file(filename.c_str());
 
-		file << "SNP\tChisq\tPval\tFreq" << endl;
-		for (i = 0; i < ja_snp_name.size(); i++) {
-			file << ja_snp_name[i] << "\t" << ja_chisq[i] << "\t" << ja_pval[i] << "\t" << ja_freq[i] << endl;
-		}
-		file.close();
+	file << "SNP\tChisq\tPval\tFreq" << endl;
+	for (size_t j = 0; j < ja_snp_name.size(); j++) {
+		file << ja_snp_name[j] << "\t" << ja_chisq[j] << "\t" << ja_pval[j] << "\t" << ja_freq[j] << endl;
 	}
+	file.close();
 }
 
 void cond_analysis::stepwise_select(vector<size_t> &selected, vector<size_t> &remain, eigenVector &bC, eigenVector &bC_se, eigenVector &pC, reference *ref)
@@ -810,11 +822,9 @@ void cond_analysis::find_independent_snps(reference *ref)
  */
 void cond_analysis::pw_conditional(int pos, reference *ref)
 {
-	vector<size_t> selected, remain;
+	vector<size_t> selected(ind_snps), remain(remain_snps);
 	eigenVector bC, bC_se, pC;
 
-	selected = ind_snps;
-	remain = remain_snps;
 	B = B_master;
 	B_i = B_i_master;
 	B_N = B_N_master;
@@ -825,13 +835,20 @@ void cond_analysis::pw_conditional(int pos, reference *ref)
 
 	// Exclude SNPs from conditional
 	if (pos >= 0) {
-		for (size_t i = 0; i < num_ind_snps; i++) {
-			if (i == (size_t)pos)
+		size_t i = 0;
+		while (selected.size() > 1) {
+			if (i == (size_t)pos) {
+				i++;
 				continue;
+			}
 			remain.push_back(selected[i]);
 			erase_B_and_Z(selected, selected[i]);
-			selected.erase(selected.begin() + i); // Expensive!
+			selected.erase(selected.begin() + i);
 		}
+
+		selected.clear();
+		selected.resize(1);
+		selected[0] = ind_snps[pos];
 	}
 
 	massoc_conditional(selected, remain, bC, bC_se, pC, ref);

@@ -27,6 +27,10 @@ double pchisq(double x, double df);
 
 double v_calc_median(const std::vector<double> &x);
 std::vector<std::size_t> v_sort_indices(const std::vector<std::string> &v);
+std::vector<std::size_t> v_remove_nans(std::vector<int> &v);
+std::vector<std::string> v_merge_nodupes(std::vector<std::string> v1, std::vector<std::string> v2);
+void v_remove_dupes(std::vector<std::string> &v);
+void v_remove_dupes(std::vector<size_t> &v);
 void eigenVector2Vector(Eigen::VectorXd &x, std::vector<double> &y);
 double logsum(const std::vector<double> &x);
 double logdiff(double x, double y);

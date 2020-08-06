@@ -209,6 +209,8 @@ void option(int option_num, char* option_str[])
 	reference *ref = new reference(out, chr, verbose);
 
 	ref->read_bimfile(bim_file); // No need to do this for the outcome dataset as well as they have already been matched
+	ref->match_bim(exposure->get_snp_names(), outcome->get_snp_names());
+	ref->sanitise_list();
 	ref->read_famfile(fam_file);
 	ref->read_bedfile(bed_file);
 	ref->calculate_allele_freq();
@@ -228,23 +230,19 @@ void option(int option_num, char* option_str[])
 	cout << "Performing " << exp_analysis->get_num_ind() * out_analysis->get_num_ind() << " conditional and colocalisation analyses." << endl;
 	
 	// Perform PWCOCO!
-#pragma omp parallel
+	for (int i = 0; i < exp_analysis->get_num_ind(); i++)
 	{
-#pragma omp for
-		for (int i = 0; i < exp_analysis->get_num_ind(); i++)
+		exp_analysis->pw_conditional(exp_analysis->get_num_ind() > 1 ? (int)i : -1, ref); // Be careful not to remove the only independent SNP
+		for (int j = 0; j < out_analysis->get_num_ind(); j++)
 		{
-			exp_analysis->pw_conditional(exp_analysis->get_num_ind() > 1 ? (int)i : -1, ref); // Be careful not to remove the only independent SNP
-			for (int j = 0; j < out_analysis->get_num_ind(); j++)
-			{
-				out_analysis->pw_conditional(out_analysis->get_num_ind() > 1 ? (int)j : -1, ref);
+			out_analysis->pw_conditional(out_analysis->get_num_ind() > 1 ? (int)j : -1, ref);
 
-				mdata *matched_conditional = new mdata(exp_analysis, out_analysis);
-				coloc_analysis *conditional_coloc = new coloc_analysis(matched_conditional, 1e-4, 1e-4, 1e-5);
-				initial_coloc->init_coloc(exp_analysis->get_ind_snp_name(i), out_analysis->get_ind_snp_name(j));
+			mdata *matched_conditional = new mdata(exp_analysis, out_analysis);
+			coloc_analysis *conditional_coloc = new coloc_analysis(matched_conditional, 1e-4, 1e-4, 1e-5);
+			initial_coloc->init_coloc(exp_analysis->get_ind_snp_name(i), out_analysis->get_ind_snp_name(j));
 
-				delete(matched_conditional);
-				delete(conditional_coloc);
-			}
+			delete(matched_conditional);
+			delete(conditional_coloc);
 		}
 	}
 

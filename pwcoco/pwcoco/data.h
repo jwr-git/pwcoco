@@ -34,6 +34,10 @@ public:
 		return pheno_variance;
 	}
 
+	vector<string> &get_snp_names() {
+		return snp_name;
+	}
+
 	// From phenotype file
 	vector<string> snp_name;
 	vector<string> allele1;
@@ -62,6 +66,10 @@ public:
 	mdata(cond_analysis *ca1, cond_analysis *ca2);
 	mdata();
 
+	vector<string> &get_snp_list() {
+		return snps1;
+	}
+
 	// Data from datasets
 	// These are matched!
 	vector<string> snps1, snps2;
@@ -86,13 +94,13 @@ public:
 	void read_bedfile(string bedfile);
 	void bim_clear();
 	void fam_clear();
+	void match_bim(vector<string> &names, vector<string> &names2);
 
 	void filter_snp_maf(double maf);
 	void sanitise_list();
 	void pair_fam();
 	void calculate_allele_freq();
 	void get_read_individuals(vector<int> &read_individuals);
-	void get_read_snps(vector<int> &read_snps);
 	void update_inclusion(const vector<size_t> idx, const vector<string> snps);
 
 	void includes_clear() {
@@ -123,11 +131,14 @@ private:
 	unsigned short a_chr;
 
 	// From .bim file
+	vector<size_t> bim_og_pos; /// Original position in the .bim file
 	vector<double> bim_genet_dst; /// Distance 
 	// Extra helper info
-	vector<size_t> og_indices; /// Original indices for the SNP names in bim_snp_name - use this to get information of a SNP from the other, unsorted vectors
 	size_t num_snps; /// Number of SNPs in analysis
+	size_t num_snps_matched; /// Number of SNPs in analysis after matching
 	vector<string> other_A; /// Other allele
+	vector<bool> read_snps; /// SNPs that are read and included by the bim file after phenotype matching
+	size_t tot_read_snps; /// Number of these SNPs
 
 	// From .fam file
 	vector<string> fam_fid; /// FID or family ID

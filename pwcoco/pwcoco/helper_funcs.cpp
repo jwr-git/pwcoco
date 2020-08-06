@@ -113,6 +113,40 @@ std::vector<std::size_t> v_sort_indices(const std::vector<std::string> &v)
 	return idx;
 }
 
+std::vector<std::size_t> v_remove_nans(std::vector<int> &v)
+{
+	std::vector<size_t>v_new;
+	for(auto &e : v) {
+		if (e == -1)
+			continue;
+		v_new.push_back((size_t)e);
+	}
+	return v_new;
+}
+
+std::vector<std::string> v_merge_nodupes(std::vector<std::string> v1, std::vector<std::string> v2)
+{
+	std::vector<std::string> temp(v1);
+	for (auto &e : v2) {
+		if (std::find(temp.begin(), temp.end(), e) == temp.end())
+			continue;
+		temp.push_back(e);
+	}
+	return temp;
+}
+
+void v_remove_dupes(std::vector<std::string> &v) 
+{
+	std::sort(v.begin(), v.end());
+	v.erase(std::unique(v.begin(), v.end()), v.end());
+}
+
+void v_remove_dupes(std::vector<size_t> &v)
+{
+	std::sort(v.begin(), v.end());
+	v.erase(std::unique(v.begin(), v.end()), v.end());
+}
+
 void eigenVector2Vector(Eigen::VectorXd &x, std::vector<double> &y)
 {
 	y.resize(x.size());
