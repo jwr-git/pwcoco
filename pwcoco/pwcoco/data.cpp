@@ -625,8 +625,11 @@ void reference::calculate_allele_freq()
 	for (int i = 0; i < n; i++) {
 		double fcount = 0.0;
 		for (int j = 0; j < m; j++) {
+			double f = 0.0;
 			if (!bed_snp_1[i][fam_ids_inc[j]] || bed_snp_2[i][fam_ids_inc[j]]) {
-				double f = bed_snp_1[i][fam_ids_inc[j]] + bed_snp_2[i][fam_ids_inc[j]];
+				double snp1 = bed_snp_1[i][fam_ids_inc[j]] ? 1.0 : 0.0,
+					snp2 = bed_snp_2[i][fam_ids_inc[j]] ? 1.0 : 0.0;
+				f = snp1 + snp2;
 				if (bim_allele2[i] == ref_A[i])
 					f = 2.0 - f;
 				mu[i] += f;

@@ -48,8 +48,6 @@ void cond_analysis::init_conditional(phenotype *pheno, reference *ref)
 
 	// First match the datasets
 	match_gwas_phenotype(pheno, ref);
-	// Re-caculate variance after matching to reference
-	//jma_Vp = jma_Ve = pheno->calc_variance();
 	jma_Vp = jma_Ve = pheno->get_variance();
 
 	n = to_include.size();
@@ -801,7 +799,6 @@ void cond_analysis::find_independent_snps(reference *ref)
 	}
 
 	cout << "[" << cname << "] (" << jma_snpnum_backward << " SNPs eliminated by backward selection.)" << endl;
-	sanitise_output(selected, bC, bC_se, pC, ref);
 
 	num_ind_snps = selected.size();
 	ind_snps = selected;
@@ -835,6 +832,12 @@ void cond_analysis::pw_conditional(int pos, reference *ref)
 
 	// Exclude SNPs from conditional
 	if (pos >= 0) {
+		remain.push_back(selected[pos]);
+		erase_B_and_Z(selected, selected[pos]);
+		selected.erase(selected.begin() + pos);
+	}
+	/*
+	if (pos >= 0) {
 		size_t i = 0;
 		while (selected.size() > 1) {
 			if (i == (size_t)pos) {
@@ -850,8 +853,10 @@ void cond_analysis::pw_conditional(int pos, reference *ref)
 		selected.resize(1);
 		selected[0] = ind_snps[pos];
 	}
+	*/
 
 	massoc_conditional(selected, remain, bC, bC_se, pC, ref);
+	sanitise_output(remain, "remain", bC, bC_se, pC, ref);
 
 	// Save in friendly format for mdata class
 	snps_cond.clear();
@@ -861,24 +866,24 @@ void cond_analysis::pw_conditional(int pos, reference *ref)
 	p_cond.clear();
 	n_cond.clear();
 
-	for (size_t i = 0; i < selected.size(); i++) {
-		size_t j = selected[i];
-		snps_cond.push_back(ref->bim_snp_name[to_include[j]]);
-		b_cond.push_back(ja_beta[j]);
-		se_cond.push_back(ja_beta_se[j]);
-		maf_cond.push_back(ja_freq[j]);
-		p_cond.push_back(ja_pval[j]);
-		n_cond.push_back(nD[j]);
-	}
+	//for (size_t i = 0; i < selected.size(); i++) {
+	//	size_t j = selected[i];
+	//	snps_cond.push_back(ref->bim_snp_name[to_include[j]]);
+	//	b_cond.push_back(ja_beta[j]);
+	//	se_cond.push_back(ja_beta_se[j]);
+	//	maf_cond.push_back(0.5 * mu[to_include[j]]);
+	//	p_cond.push_back(ja_pval[j]);
+	//	n_cond.push_back(nD[j]);
+	//}
 
 	for (size_t i = 0; i < remain.size(); i++) {
 		size_t j = remain[i];
 		snps_cond.push_back(ref->bim_snp_name[to_include[j]]);
-		b_cond.push_back(ja_beta[j]);
-		se_cond.push_back(ja_beta_se[j]);
-		maf_cond.push_back(ja_freq[j]);
-		p_cond.push_back(ja_pval[j]);
-		n_cond.push_back(nD[j]);
+		b_cond.push_back(bC[i]);
+		se_cond.push_back(bC_se[i]);
+		maf_cond.push_back(0.5 * mu[to_include[j]]);
+		p_cond.push_back(pC[i]);
+		n_cond.push_back(nD[i]);
 	}
 	cond_passed = bC.size() > 0;
 }
@@ -900,9 +905,9 @@ void cond_analysis::LD_rval(const vector<size_t> &idx, eigenMatrix &rval)
 	}
 }
 
-void cond_analysis::sanitise_output(vector<size_t> &selected, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, reference *ref)
+void cond_analysis::sanitise_output(vector<size_t> &selected, string name, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, reference *ref)
 {
-	string filename = cname + ".cma.cojo";
+	string filename = cname + "." + name + ".cojo";
 	ofstream ofile(filename.c_str());
 	size_t i = 0, j = 0;
 	
@@ -913,7 +918,6 @@ void cond_analysis::sanitise_output(vector<size_t> &selected, eigenVector &bJ, e
 	ofile << "Chr\tSNP\tbp\trefA\tfreq\tb\tse\tp\tn\tfreq_geno\tbC\tbC_se\tpC";
 	ofile << endl;
 
-	snps_cond.resize(selected.size());
 	for (i = 0; i < selected.size(); i++) {
 		j = selected[i];
 		ofile << ref->bim_chr[to_include[j]] << "\t" << ref->bim_snp_name[to_include[j]] << "\t" << ref->bim_bp[to_include[j]] << "\t";
