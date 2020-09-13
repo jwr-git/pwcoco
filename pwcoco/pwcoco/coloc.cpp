@@ -38,56 +38,44 @@ coloc_analysis::coloc_analysis()
 void coloc_analysis::estimate_bf(const vector<double> beta, const vector<double> se, const vector<double> freq, 
 	const vector<double> n, vector<double> *ABF)
 {
-	vector<double> invbeta = beta, 
+	vector<double> varbeta, invbeta,
 		nvx = freq, 
 		z = beta, 
 		sesq = se, 
 		ssize = n,
-		sdY, sd_prior, r, log_temp;
-
-	// There may be zero betas in the data which need removed
-	// These vectors are all the same size so this is... possible but maybe not best practice
-	//for (size_t i = 0; i < beta.size(); i++) {
-	//	if (!(beta[i] == 0.0 || isnan(beta[i]) || isinf(beta[i]) || !isfinite(beta[i])
-	//		|| isnan(se[i]) || isinf(se[i]) || !isfinite(se[i])))
-	//	{
-	//		invbeta.push_back(beta[i]);
-	//		nvx.push_back(freq[i]);
-	//		z.push_back(beta[i]);
-	//		sesq.push_back(se[i]);
-	//		ssize.push_back(n[i]);
-	//	}
-	//}
+		r, log_temp;
+	double sdY, sd_prior;
 
 	// Square standard errors and ensure frequencies are MINOR allele frequencies
 	transform(sesq.begin(), sesq.end(), sesq.begin(), [](double x) { return x * x; });
 	transform(nvx.begin(), nvx.end(), nvx.begin(), [](double x) { return x > 0.5 ? 1.0 - x : x; });
 
 	// Inverse beta calculation
+	varbeta = sesq;
+	invbeta = varbeta;
 	transform(invbeta.begin(), invbeta.end(), invbeta.begin(), [](double x) { return 1 / x; });
 	// Estimate sdY from 
 	transform(nvx.begin(), nvx.end(), ssize.begin(), nvx.begin(), [](double x, double n_) { return 2 * n_ * x * (1 - x); });
 
 	// Regress b*var(x) against 1/var(beta)
-	sdY = lm_fixed(nvx, invbeta);
-	transform(sdY.begin(), sdY.end(), sdY.begin(), (double(*)(double)) sqrt);
+	sdY = lm_fixed(invbeta, nvx); // same as: lm(nvx ~ invbeta - 1)
+	sdY = sqrt(sdY);
 
 	// Calculate z and estimate Bayes factors
-	transform(z.begin(), z.end(), sesq.begin(), z.begin(), [](double b, double se) { return b / (double)sqrt(se); });
+	transform(z.begin(), z.end(), se.begin(), z.begin(), [](double b, double se_) { return b / se_; });
 
 	// if type == COLOC_QUANT
-	sd_prior = sdY;
-	transform(sd_prior.begin(), sd_prior.end(), sd_prior.begin(), [](double x) { return 0.15 * x; });
+	sd_prior = 0.15 * sdY;
 	// else sd_prior = 0.2
 	
-	r = sd_prior;
-	transform(r.begin(), r.end(), sesq.begin(), r.begin(), [](double sdp, double v) { return (sdp * sdp) / (sdp * sdp + v); });
+	r = varbeta;
+	transform(r.begin(), r.end(), r.begin(), [sd_prior](double v) { return (sd_prior * sd_prior) / (sd_prior * sd_prior + v); });
 
-	log_temp = r;
-	transform(log_temp.begin(), log_temp.end(), log_temp.begin(), [](double x) { return log(1 - x); });
+	log_temp = varbeta;
+	transform(log_temp.begin(), log_temp.end(), log_temp.begin(), [sd_prior](double x) { return log(x) - log(sd_prior * sd_prior + x); });
 
 	// Caluclate approximate Bayes factor
-	size_t i, size = invbeta.size();
+	size_t i, size = varbeta.size();
 	//ABF->resize(size);
 	for (i = 0; i < size; i++) {
 		ABF->push_back(0.5 * (log_temp[i] + (r[i] * z[i] * z[i])));

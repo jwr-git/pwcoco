@@ -35,8 +35,8 @@ void eigenVector2Vector(Eigen::VectorXd &x, std::vector<double> &y);
 double logsum(const std::vector<double> &x);
 double logdiff(double x, double y);
 
-std::vector<double> lm(const std::vector<double> &x, const std::vector<double> &y);
-std::vector<double> lm_fixed(const std::vector<double> &x, const std::vector<double> &y);
+double lm(const std::vector<double> &x, const std::vector<double> &y);
+double lm_fixed(const std::vector<double> &x, const std::vector<double> &y);
 
 //template<typename KeyType, typename LeftValue, typename RightValue>
 //std::map<KeyType, std::pair<LeftValue, RightValue> > IntersectMaps(const std::map<KeyType, LeftValue> &left, const std::map<KeyType, RightValue> &right);

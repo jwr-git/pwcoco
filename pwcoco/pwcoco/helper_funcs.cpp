@@ -175,7 +175,7 @@ double logdiff(double x, double y)
 	return m + log(exp(x - m) - exp(y - m));
 }
 
-std::vector<double> lm(const std::vector<double> &x, const std::vector<double> &y)
+double lm(const std::vector<double> &x, const std::vector<double> &y)
 {
 	if (x.size() != y.size()) {
 		ShowError("Cannot compute regression for colocalisation due to differing sizes of vectors.");
@@ -198,14 +198,11 @@ std::vector<double> lm(const std::vector<double> &x, const std::vector<double> &
 
 	double m = sdXY / sdXX;
 	double c = meanY - (m * meanX);
-	
-	std::vector<double> res = x;
-	transform(res.begin(), res.end(), res.begin(), [=](double r) { return m * r + c; });
-	return res;
+	return m;
 
 }
 
-std::vector<double> lm_fixed(const std::vector<double> &x, const std::vector<double> &y)
+double lm_fixed(const std::vector<double> &x, const std::vector<double> &y)
 {
 	if (x.size() != y.size()) {
 		throw("Cannot compute regression for colocalisation due to differing sizes of vectors.");
@@ -218,10 +215,7 @@ std::vector<double> lm_fixed(const std::vector<double> &x, const std::vector<dou
 		sumXX += x[i] * x[i];
 	}
 	double m = sumXY / sumXX;
-
-	std::vector<double> res = x;
-	transform(res.begin(), res.end(), res.begin(), [=](double r) { return m * r; });
-	return res;
+	return m;
 }
 
 std::string string2upper(const std::string &str)
