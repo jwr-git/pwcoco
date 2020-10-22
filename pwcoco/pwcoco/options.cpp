@@ -10,20 +10,20 @@
 
 int main(int argc, char* argv[])
 {
-	cout << " ****************************************************************************************************" << endl;
-	cout << " *                                             _..._       .-'''-.           _..._       .-'''-.    *" << endl;
-	cout << " *                                          .-'_..._''.   '   _    \\      .-'_..._''.   '   _    \\  *" << endl;
-	cout << " * _________   _...._                     .' .'      '.\\/   /` '.   \\   .' .'      '.\\/   /` '.   \\ *" << endl;
-	cout << " * \\        |.'      '-.         _     _ / .'          .   |     \\  '  / .'          .   |     \\  ' *" << endl;
-	cout << " *  \\        .'```'.    '. /\\    \\\\   //. '            |   '      |  '. '            |   '      |  '*" << endl;
-	cout << " *   \\      |       \\     \\`\\\\  //\\\\ // | |            \\    \\     / / | |            \\    \\     / / *" << endl;
-	cout << " *    |     |        |    |  \\`//  \\'/  | |             `.   ` ..' /  | |             `.   ` ..' /  *" << endl;
-	cout << " *    |      \\      /    .    \\|   |/   . '                '-...-'`   . '                '-...-'`   *" << endl;
-	cout << " *    |     |\\`'-.-'   .'      '         \\ '.          .               \\ '.          .              *" << endl;
-	cout << " *    |     | '-....-'`                   '. `._____.-'/                '. `._____.-'/              *" << endl;
-	cout << " *   .'     '.                              `-.______ /                   `-.______ /               *" << endl;
-	cout << " * '-----------'                                     `                             `                *" << endl;
-	cout << " ****************************************************************************************************" << endl;
+	spdlog::info(" ****************************************************************************************************");
+	spdlog::info(" *                                             _..._       .-'''-.           _..._       .-'''-.    *");
+	spdlog::info(" *                                          .-'_..._''.   '   _    \\      .-'_..._''.   '   _    \\  *");
+	spdlog::info(" * _________   _...._                     .' .'      '.\\/   /` '.   \\   .' .'      '.\\/   /` '.   \\ *");
+	spdlog::info(" * \\        |.'      '-.         _     _ / .'          .   |     \\  '  / .'          .   |     \\  ' *");
+	spdlog::info(" *  \\        .'```'.    '. /\\    \\\\   //. '            |   '      |  '. '            |   '      |  '*");
+	spdlog::info(" *   \\      |       \\     \\`\\\\  //\\\\ // | |            \\    \\     / / | |            \\    \\     / / *");
+	spdlog::info(" *    |     |        |    |  \\`//  \\'/  | |             `.   ` ..' /  | |             `.   ` ..' /  *");
+	spdlog::info(" *    |      \\      /    .    \\|   |/   . '                '-...-'`   . '                '-...-'`   *");
+	spdlog::info(" *    |     |\\`'-.-'   .'      '         \\ '.          .               \\ '.          .              *");
+	spdlog::info(" *    |     | '-....-'`                   '. `._____.-'/                '. `._____.-'/              *");
+	spdlog::info(" *   .'     '.                              `-.______ /                   `-.______ /               *");
+	spdlog::info(" * '-----------'                                     `                             `                *");
+	spdlog::info(" ****************************************************************************************************");
 
 	try {
 		option(argc, argv);
@@ -53,7 +53,7 @@ void option(int option_num, char* option_str[])
 		phen1_file = "", phen2_file = "",
 		out = "pwcoco_out", log = "pwcoco_log", snplist = "",
 		opt;
-	bool verbose = true;
+	bool out_cond = false;
 
 	/*
 	 * Read through option flags given by user.
@@ -90,9 +90,6 @@ void option(int option_num, char* option_str[])
 		else if (opt == "--out") {
 			out = option_str[++i];
 		}
-		else if (opt == "--verbose") {
-			verbose = true;
-		}
 		else if (opt == "--chr") {
 			chr = (unsigned short)stoi(option_str[++i]);
 		}
@@ -113,6 +110,9 @@ void option(int option_num, char* option_str[])
 		}
 		else if (opt == "--init_h4") {
 			init_h4 = stod(option_str[++i]);
+		}
+		else if (opt == "--out_cond") {
+			out_cond = stoi(option_str[++i]) ? true : false;
 		}
 	}
 
@@ -227,13 +227,13 @@ void option(int option_num, char* option_str[])
 	coloc_analysis *initial_coloc = new coloc_analysis(matched, out, 1e-4, 1e-4, 1e-5);
 	initial_coloc->init_coloc();
 
-	if (initial_coloc->pp_abf[H4] > init_h4) { // TODO user-specified flag
-		spdlog::info("Stopping algorthim as H4 for initial colocalisation analysis is already at or above threshold ({}%).", init_h4);
+	if (initial_coloc->pp_abf[H4] > init_h4) {
+		spdlog::info("Stopping algorthim as H4 for initial colocalisation analysis is already at or above threshold ({}%).", init_h4*100);
 		return;
 	}
 
 	// Initialise the reference
-	reference *ref = new reference(out, chr, verbose);
+	reference *ref = new reference(out, chr);
 
 	// Bim-related first
 	if (ref->read_bimfile(bim_file) == 0) { // No need to do this for the outcome dataset as well as they have already been matched
@@ -258,11 +258,11 @@ void option(int option_num, char* option_str[])
 	}
 
 	// Find each independent SNPs for both exposure and outcome data
-	cond_analysis *exp_analysis = new cond_analysis(p_cutoff, collinear, ld_window, out, verbose, top_snp, freq_threshold, "exposure");
+	cond_analysis *exp_analysis = new cond_analysis(p_cutoff, collinear, ld_window, out, top_snp, freq_threshold, "exposure");
 	exp_analysis->init_conditional(exposure, ref);
 	exp_analysis->find_independent_snps(ref);
 
-	cond_analysis *out_analysis = new cond_analysis(p_cutoff, collinear, ld_window, out, verbose, top_snp, freq_threshold, "outcome");
+	cond_analysis *out_analysis = new cond_analysis(p_cutoff, collinear, ld_window, out, top_snp, freq_threshold, "outcome");
 	out_analysis->init_conditional(outcome, ref);
 	out_analysis->find_independent_snps(ref);
 
@@ -281,10 +281,10 @@ void option(int option_num, char* option_str[])
 	string exp_snp_name = "", out_snp_name = "";
 	if (exp_analysis->get_num_ind() == 0) 
 	{
-		exp_snp_name = "[Unconditioned]";
+		exp_snp_name = "unconditioned";
 		for (int j = 0; j < out_analysis->get_num_ind(); j++)
 		{
-			out_analysis->pw_conditional(out_analysis->get_num_ind() > 1 ? (int)j : -1, ref); // Be careful not to remove the only independent SNP
+			out_analysis->pw_conditional(out_analysis->get_num_ind() > 1 ? (int)j : -1, out_cond, ref); // Be careful not to remove the only independent SNP
 			out_snp_name = out_analysis->get_ind_snp_name(j);
 
 			mdata *matched_conditional = new mdata(exp_analysis, out_analysis);
@@ -297,10 +297,10 @@ void option(int option_num, char* option_str[])
 	}
 	else if (out_analysis->get_num_ind() == 0)
 	{
-		out_snp_name = "[Unconditioned]";
+		out_snp_name = "unconditioned";
 		for (int i = 0; i < exp_analysis->get_num_ind(); i++)
 		{
-			exp_analysis->pw_conditional(exp_analysis->get_num_ind() > 1 ? (int)i : -1, ref); // Be careful not to remove the only independent SNP
+			exp_analysis->pw_conditional(exp_analysis->get_num_ind() > 1 ? (int)i : -1, out_cond, ref); // Be careful not to remove the only independent SNP
 			exp_snp_name = exp_analysis->get_ind_snp_name(i);
 
 			mdata *matched_conditional = new mdata(exp_analysis, out_analysis);
@@ -314,11 +314,11 @@ void option(int option_num, char* option_str[])
 	else {
 		for (int i = 0; i < exp_analysis->get_num_ind(); i++)
 		{
-			exp_analysis->pw_conditional(exp_analysis->get_num_ind() > 1 ? (int)i : -1, ref); // Be careful not to remove the only independent SNP
+			exp_analysis->pw_conditional(exp_analysis->get_num_ind() > 1 ? (int)i : -1, out_cond, ref); // Be careful not to remove the only independent SNP
 			exp_snp_name = exp_analysis->get_ind_snp_name(i);
 			for (int j = 0; j < out_analysis->get_num_ind(); j++)
 			{
-				out_analysis->pw_conditional(out_analysis->get_num_ind() > 1 ? (int)j : -1, ref);
+				out_analysis->pw_conditional(out_analysis->get_num_ind() > 1 ? (int)j : -1, out_cond, ref);
 				out_snp_name = out_analysis->get_ind_snp_name(j);
 
 				mdata *matched_conditional = new mdata(exp_analysis, out_analysis);
@@ -332,6 +332,6 @@ void option(int option_num, char* option_str[])
 	}
 
 	chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-	spdlog::info("Analysis finished.\nComputational time: {} secs", (std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()) / 1000000.0);
+	spdlog::info("Analysis finished. Computational time: {} secs", (std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()) / 1000000.0);
 	return;
 }

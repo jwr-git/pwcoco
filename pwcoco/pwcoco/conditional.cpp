@@ -3,14 +3,13 @@
 /*
  * cond_analysis constructor
  */
-cond_analysis::cond_analysis(double p_cutoff, double collinear, double ld_window, string out, bool verbose, double top_snp, double freq_thres, string name)
+cond_analysis::cond_analysis(double p_cutoff, double collinear, double ld_window, string out, double top_snp, double freq_thres, string name)
 {
 	cname = name;
 	a_out = out;
 	a_p_cutoff = p_cutoff;
 	a_collinear = collinear;
 	a_ld_window = ld_window;
-	a_verbose = verbose;
 	a_freq_threshold = freq_thres;
 
 	a_top_snp = (top_snp < 0 ? 1e10 : top_snp);
@@ -28,7 +27,6 @@ cond_analysis::cond_analysis()
 	a_p_cutoff = 5e-8;
 	a_collinear = 0.9;
 	a_ld_window = 1e7;
-	a_verbose = true;
 	a_freq_threshold = 0.2;
 
 	a_top_snp = -1;
@@ -207,7 +205,7 @@ void cond_analysis::stepwise_select(vector<size_t> &selected, vector<size_t> &re
 		//m = min_element(p_temp.begin(), p_temp.end()) - p_temp.begin();
 		m = max_element(chisq.begin(), chisq.end()) - chisq.begin();;
 
-	spdlog::info("[{}] Selected SNP {} with chisq {:.2f} and pval {:.2f}.", cname, ja_snp_name[m], ja_chisq[m], ja_pval[m]);
+	spdlog::info("[{}] Selected SNP {} with chisq {:.2f} and pval {:.2e}.", cname, ja_snp_name[m], ja_chisq[m], ja_pval[m]);
 	if (ja_pval[m] >= a_p_cutoff) {
 		spdlog::info("[{}] SNP did not meet threshold.", cname);
 		return;
@@ -462,7 +460,7 @@ bool cond_analysis::select_entry(vector<size_t> &selected, vector<size_t> &remai
 
 	while (true) {
 		m = min_element(pC_temp.begin(), pC_temp.end()) - pC_temp.begin();
-		spdlog::info("[{}] Selected entry SNP {} with cpval {}.", cname, ja_snp_name[m], pC_temp[m]);
+		spdlog::info("[{}] Selected entry SNP {} with cpval {:.2e}.", cname, ja_snp_name[m], pC_temp[m]);
 		if (pC_temp[m] >= a_p_cutoff) {
 			spdlog::info("[{}] {} does not meet threshold", cname, ja_snp_name[m]);
 			return false;
@@ -780,7 +778,7 @@ void cond_analysis::find_independent_snps(reference *ref)
 /*
  * Run step-wise selection to find independent association signals/SNP
  */
-void cond_analysis::pw_conditional(int pos, reference *ref)
+void cond_analysis::pw_conditional(int pos, bool out_cond, reference *ref)
 {
 	vector<size_t> selected(ind_snps), remain(remain_snps);
 	eigenVector bC, bC_se, pC;
@@ -794,12 +792,13 @@ void cond_analysis::pw_conditional(int pos, reference *ref)
 	Z_N = Z_N_master;
 
 	// Exclude SNPs from conditional
+	/*
 	if (pos >= 0) {
 		remain.push_back(selected[pos]);
 		erase_B_and_Z(selected, selected[pos]);
 		selected.erase(selected.begin() + pos);
 	}
-	/*
+	*/
 	if (pos >= 0) {
 		size_t i = 0;
 		while (selected.size() > 1) {
@@ -816,10 +815,11 @@ void cond_analysis::pw_conditional(int pos, reference *ref)
 		selected.resize(1);
 		selected[0] = ind_snps[pos];
 	}
-	*/
 
 	massoc_conditional(selected, remain, bC, bC_se, pC, ref);
-	sanitise_output(remain, "remain", bC, bC_se, pC, ref);
+	if (out_cond) {
+		sanitise_output(remain, "remain." + ref->bim_snp_name[ind_snps[pos]], bC, bC_se, pC, ref);
+	}
 
 	// Save in friendly format for mdata class
 	snps_cond.clear();

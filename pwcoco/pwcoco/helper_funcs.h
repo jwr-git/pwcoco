@@ -38,6 +38,8 @@ double logdiff(double x, double y);
 double lm(const std::vector<double> &x, const std::vector<double> &y);
 double lm_fixed(const std::vector<double> &x, const std::vector<double> &y);
 
+bool file_is_empty(std::ifstream &pFile);
+
 //template<typename KeyType, typename LeftValue, typename RightValue>
 //std::map<KeyType, std::pair<LeftValue, RightValue> > IntersectMaps(const std::map<KeyType, LeftValue> &left, const std::map<KeyType, RightValue> &right);
 

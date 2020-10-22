@@ -153,18 +153,20 @@ void coloc_analysis::perform_coloc()
 
 void coloc_analysis::results_to_file(string s1, string s2)
 {
+	ifstream ifile(outfile + ".coloc");
+	bool write_header = file_is_empty(ifile);
 	ofstream file;
 
+	ifile.close();
 	file.open(outfile + ".coloc", std::ios::out | std::ios::app);
 	if (file.fail()) {
 		spdlog::warn("Could not write colocalisation results to file {}. Please check permissions for this folder.", outfile + ".coloc");
 		return;
 	}
 	
-	if (!has_header) {
+	if (write_header) {
 		file << "SNP1\tSNP2\tH0\tH1\tH2\tH3\tH4\tlog_abf_all" << endl;
-		has_header = true;
 	}
-	file << pp_abf[H0] << "\t" << pp_abf[H1] << "\t" << pp_abf[H2] << "\t" << pp_abf[H3] << "\t" << pp_abf[H4] << "\t" << log_abf_all << endl;
+	file << s1 << "\t" << s2 << "\t" << pp_abf[H0] << "\t" << pp_abf[H1] << "\t" << pp_abf[H2] << "\t" << pp_abf[H3] << "\t" << pp_abf[H4] << "\t" << log_abf_all << endl;
 	file.close();
 }

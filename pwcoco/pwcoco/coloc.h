@@ -2,6 +2,7 @@
 
 #include "data.h"
 #include "conditional.h"
+#include "helper_funcs.h"
 
 using namespace std;
 
@@ -48,6 +49,4 @@ private:
 	double h0, h1, h2, h3, h4;
 	double log_ABF_sum;
 	double log_abf_all;
-
-	bool has_header; // If the output file has header already written or not
 };

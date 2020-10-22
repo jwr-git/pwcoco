@@ -224,3 +224,8 @@ std::string string2upper(const std::string &str)
 	transform(t.begin(), t.end(), t.begin(), ::toupper);
 	return t;
 }
+
+bool file_is_empty(std::ifstream &pFile)
+{
+	return pFile.peek() == std::ifstream::traits_type::eof();
+}

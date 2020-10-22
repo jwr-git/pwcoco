@@ -185,10 +185,9 @@ double phenotype::calc_variance(vector<size_t> idx)
 /*
  * Sub-class reference data constructor
  */
-reference::reference(string out, unsigned short chr, bool verbose)
+reference::reference(string out, unsigned short chr)
 {
 	a_out = out;
-	a_verbose = verbose;
 	a_chr = chr;
 }
 
@@ -198,7 +197,6 @@ reference::reference(string out, unsigned short chr, bool verbose)
 reference::reference()
 {
 	a_out = "";
-	a_verbose = false;
 	a_chr = -1;
 }
 

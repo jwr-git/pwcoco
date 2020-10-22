@@ -94,7 +94,7 @@ private:
 
 class reference {
 public:
-	reference(string out, unsigned short chr, bool verbose);
+	reference(string out, unsigned short chr);
 	reference();
 	void reference_clear();
 
@@ -140,7 +140,6 @@ public:
 
 private:
 	string a_out;
-	bool a_verbose;
 	unsigned short a_chr;
 	bool failed; // Reference files failed to read in some way
 

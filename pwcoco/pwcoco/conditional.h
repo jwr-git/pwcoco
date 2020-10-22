@@ -41,7 +41,7 @@ enum cond_type {
 
 class cond_analysis {
 public:
-	cond_analysis(double p_cutoff, double collinear, double ld_window, string out, bool verbose, double top_snp, double freq_thres, string name);
+	cond_analysis(double p_cutoff, double collinear, double ld_window, string out, double top_snp, double freq_thres, string name);
 	cond_analysis();
 
 	bool coloc_ready() {
@@ -68,7 +68,7 @@ public:
 
 	void init_conditional(phenotype *pheno, reference *ref);
 	void find_independent_snps(reference *ref);
-	void pw_conditional(int pos, reference *ref);
+	void pw_conditional(int pos, bool out_cond, reference *ref);
 
 	// For coloc
 	vector<string> snps_cond; /// SNP names
@@ -124,7 +124,6 @@ private:
 	string a_out;
 	double a_top_snp;
 	double a_p_cutoff;
-	bool a_verbose;
 	double a_freq_threshold;
 	int num_snps;
 
