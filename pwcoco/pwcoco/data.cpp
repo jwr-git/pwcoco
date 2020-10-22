@@ -154,7 +154,7 @@ void phenotype::read_phenofile(string filename)
 		h = 2.0 * freq[count] * (1.0 - freq[count]);
 		Vp = h * n[count] * se[count] * se[count] + h * beta[count] * beta[count] * n[count] / (n[count] - 1.0);
 		if (Vp < 0.0) {
-			spdlog::critical("Error in reading phenotype file {}: variance is less than zero (Vp = {}).", filename, Vp);
+			spdlog::critical("Error in reading phenotype file {}: variance is less than zero (Vp = {:.2f}).", filename, Vp);
 			failed = true;
 		}
 		Vp_v.push_back(Vp);
@@ -165,7 +165,7 @@ void phenotype::read_phenofile(string filename)
 	pheno_variance = v_calc_median(Vp_v);
 
 	spdlog::info("Read a total of: {} lines in phenotype file {}.", snp_name.size(), filename);
-	spdlog::info("Phenotypic variance estimated from summary statistcs of all SNPs: {}", pheno_variance);
+	spdlog::info("Phenotypic variance estimated from summary statistcs of all SNPs: {:.2f}", pheno_variance);
 }
 
 /*
@@ -178,7 +178,7 @@ double phenotype::calc_variance(vector<size_t> idx)
 		Vp_temp.push_back(Vp_v[i]);
 	}
 	pheno_variance = v_calc_median(Vp_temp);
-	cout << "New phenotypic variances estimated from SNPs included in analysis is: " << pheno_variance << "." << endl;
+	spdlog::info("New phenotypic variances estimated from SNPs included in analysis is: {:.2f}.", pheno_variance);
 	return pheno_variance;
 }
 

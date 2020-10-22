@@ -117,13 +117,17 @@ void option(int option_num, char* option_str[])
 	}
 
 	// First set up the logger
+	vector<spdlog::sink_ptr> sinks;
+	sinks.push_back(make_shared<spdlog::sinks::wincolor_stdout_sink_st>());
 	try {
-		auto logger = spdlog::basic_logger_mt("pwcoco_log", log + ".txt");
+		sinks.push_back(make_shared<spdlog::sinks::basic_file_sink_st>(log + ".txt"));
+		auto logger = make_shared<spdlog::logger>("pwcoco_log", begin(sinks), end(sinks)); 
 		spdlog::set_default_logger(logger);
 	}
 	catch (const spdlog::spdlog_ex &ex) {
-		cout << "Log setup failed: " << ex.what() << " - attempting to create default log \"pwococ_log.txt\"." << endl;
-		auto logger = spdlog::basic_logger_mt("pwcoco_log", "pwcoco_log.txt");
+		cout << "Log setup failed: " << ex.what() << " - attempting to create default log \"pwcoco_log.txt\"." << endl;
+		sinks.push_back(make_shared<spdlog::sinks::basic_file_sink_st>("pwcoco_log.txt"));
+		auto logger = make_shared<spdlog::logger>("pwcoco_log", begin(sinks), end(sinks));
 		spdlog::set_default_logger(logger);
 	}
 	spdlog::flush_every(std::chrono::seconds(10));
@@ -131,7 +135,6 @@ void option(int option_num, char* option_str[])
 	// Some analytics why not?
 	chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 
-	spdlog::info("Options: ");
 	spdlog::info("Using {} as reference files (.bfile, etc.)", bfile);
 	spdlog::info("Using {} and {} as phenotype files.", phen1_file, phen2_file);
 	spdlog::info("Using P cutoff of {}", p_cutoff);
@@ -221,7 +224,7 @@ void option(int option_num, char* option_str[])
 	}
 
 	mdata *matched = new mdata(exposure, outcome);
-	coloc_analysis *initial_coloc = new coloc_analysis(matched, 1e-4, 1e-4, 1e-5);
+	coloc_analysis *initial_coloc = new coloc_analysis(matched, out, 1e-4, 1e-4, 1e-5);
 	initial_coloc->init_coloc();
 
 	if (initial_coloc->pp_abf[H4] > init_h4) { // TODO user-specified flag
@@ -285,7 +288,7 @@ void option(int option_num, char* option_str[])
 			out_snp_name = out_analysis->get_ind_snp_name(j);
 
 			mdata *matched_conditional = new mdata(exp_analysis, out_analysis);
-			coloc_analysis *conditional_coloc = new coloc_analysis(matched_conditional, 1e-4, 1e-4, 1e-5);
+			coloc_analysis *conditional_coloc = new coloc_analysis(matched_conditional, out, 1e-4, 1e-4, 1e-5);
 			initial_coloc->init_coloc(exp_snp_name, out_snp_name);
 
 			delete(matched_conditional);
@@ -301,7 +304,7 @@ void option(int option_num, char* option_str[])
 			exp_snp_name = exp_analysis->get_ind_snp_name(i);
 
 			mdata *matched_conditional = new mdata(exp_analysis, out_analysis);
-			coloc_analysis *conditional_coloc = new coloc_analysis(matched_conditional, 1e-4, 1e-4, 1e-5);
+			coloc_analysis *conditional_coloc = new coloc_analysis(matched_conditional, out, 1e-4, 1e-4, 1e-5);
 			initial_coloc->init_coloc(exp_snp_name, out_snp_name);
 
 			delete(matched_conditional);
@@ -319,7 +322,7 @@ void option(int option_num, char* option_str[])
 				out_snp_name = out_analysis->get_ind_snp_name(j);
 
 				mdata *matched_conditional = new mdata(exp_analysis, out_analysis);
-				coloc_analysis *conditional_coloc = new coloc_analysis(matched_conditional, 1e-4, 1e-4, 1e-5);
+				coloc_analysis *conditional_coloc = new coloc_analysis(matched_conditional, out, 1e-4, 1e-4, 1e-5);
 				initial_coloc->init_coloc(exp_snp_name, out_snp_name);
 
 				delete(matched_conditional);

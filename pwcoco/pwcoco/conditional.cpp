@@ -207,7 +207,7 @@ void cond_analysis::stepwise_select(vector<size_t> &selected, vector<size_t> &re
 		//m = min_element(p_temp.begin(), p_temp.end()) - p_temp.begin();
 		m = max_element(chisq.begin(), chisq.end()) - chisq.begin();;
 
-	spdlog::info("[{}] Selected SNP {} with chisq {} and pval {}.", cname, ja_snp_name[m], ja_chisq[m], ja_pval[m]);
+	spdlog::info("[{}] Selected SNP {} with chisq {:.2f} and pval {:.2f}.", cname, ja_snp_name[m], ja_chisq[m], ja_pval[m]);
 	if (ja_pval[m] >= a_p_cutoff) {
 		spdlog::info("[{}] SNP did not meet threshold.", cname);
 		return;

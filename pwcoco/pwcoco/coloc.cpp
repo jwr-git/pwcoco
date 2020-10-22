@@ -3,7 +3,7 @@
 /*
  * cond_analysis constructor
  */
-coloc_analysis::coloc_analysis(mdata *mdat, double pval1, double pval2, double pval3)
+coloc_analysis::coloc_analysis(mdata *mdat, string out, double pval1, double pval2, double pval3)
 {
 	p1 = pval1;
 	p2 = pval2;
@@ -15,6 +15,7 @@ coloc_analysis::coloc_analysis(mdata *mdat, double pval1, double pval2, double p
 	log_abf_all = log_ABF_sum = 0.0;
 
 	matched = mdat;
+	outfile = out;
 	spdlog::info("Colocalisation analysis initialised with {} SNPs.", matched->snps1.size());
 }
 
@@ -24,6 +25,7 @@ coloc_analysis::coloc_analysis(mdata *mdat, double pval1, double pval2, double p
 coloc_analysis::coloc_analysis()
 {
 	matched = NULL;
+	outfile = "pwcoco_coloc.out";
 	
 	p1 = 1e-4;
 	p2 = 1e-4;
@@ -109,6 +111,7 @@ void coloc_analysis::init_coloc()
 	perform_coloc();
 	spdlog::info("Unconditioned colocalisation results.");
 	spdlog::info("H0: {:.2f}; H1: {:.2f}; H2: {:.2f}; H3: {:.2f}; H4: {:.2f}; abf_all: {:.2f}.", pp_abf[H0], pp_abf[H1], pp_abf[H2], pp_abf[H3], pp_abf[H4], log_abf_all);
+	results_to_file("unconditioned", "unconditioned");
 }
 
 void coloc_analysis::init_coloc(string snp1, string snp2)
@@ -116,6 +119,7 @@ void coloc_analysis::init_coloc(string snp1, string snp2)
 	perform_coloc();
 	spdlog::info("Conditioned results for SNP1: {}, SNP2: {}", snp1, snp2);
 	spdlog::info("H0: {:.2f}; H1: {:.2f}; H2: {:.2f}; H3: {:.2f}; H4: {:.2f}; abf_all: {:.2f}.", pp_abf[H0], pp_abf[H1], pp_abf[H2], pp_abf[H3], pp_abf[H4], log_abf_all);
+	results_to_file(snp1, snp2);
 }
 
 void coloc_analysis::perform_coloc()
@@ -145,4 +149,22 @@ void coloc_analysis::perform_coloc()
 
 	// Combine the PPs to find each H
 	combine_abf(ABF_sum.size());
+}
+
+void coloc_analysis::results_to_file(string s1, string s2)
+{
+	ofstream file;
+
+	file.open(outfile + ".coloc", std::ios::out | std::ios::app);
+	if (file.fail()) {
+		spdlog::warn("Could not write colocalisation results to file {}. Please check permissions for this folder.", outfile + ".coloc");
+		return;
+	}
+	
+	if (!has_header) {
+		file << "SNP1\tSNP2\tH0\tH1\tH2\tH3\tH4\tlog_abf_all" << endl;
+		has_header = true;
+	}
+	file << pp_abf[H0] << "\t" << pp_abf[H1] << "\t" << pp_abf[H2] << "\t" << pp_abf[H3] << "\t" << pp_abf[H4] << "\t" << log_abf_all << endl;
+	file.close();
 }
