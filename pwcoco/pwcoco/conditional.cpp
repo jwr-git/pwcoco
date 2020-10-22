@@ -792,7 +792,10 @@ void cond_analysis::find_independent_snps(reference *ref)
 	stepwise_select(selected, remain, bC, bC_se, pC, ref);
 
 	if (selected.empty()) {
-		ShowError("Conditional Error: No SNPs have been selected by the step-wise selection algorithm.");
+		cout << "Conditional Warning: No SNPs have been selected by the step-wise selection algorithm. Using the unconditioned dataset." << endl;
+
+		num_ind_snps = 0;
+		return;
 	}
 	else if (selected.size() >= fam_ids_inc.size()) {
 		ShowError("Conditional Error: Too many SNPs. The number of SNPs should not be larger than the sample size.");
@@ -967,6 +970,48 @@ mdata::mdata(cond_analysis *ca1, cond_analysis *ca2)
 		pvals2.push_back(ca2->p_cond[itmap->second]);
 		mafs2.push_back(ca2->maf_cond[itmap->second]);
 		ns2.push_back(ca2->n_cond[itmap->second]);
+
+		itmap++;
+	}
+}
+
+/*
+ * Initialise matched data class from one conditional analysis and one phenotype
+ */
+mdata::mdata(cond_analysis *ca, phenotype *ph)
+{
+	vector<string> pheno_snps = ph->get_snp_names();
+	if (!ca->coloc_ready()) {
+		return; // TODO Handle me
+	}
+
+	// Match SNPs
+	for (auto i : ph->matched_idx) {
+		vector<string>::iterator it;
+		string snp_to_find = pheno_snps[i];
+
+		if ((it = find(ca->snps_cond.begin(), ca->snps_cond.end(), snp_to_find)) != ca->snps_cond.end()) {
+			snp_map.insert(pair<size_t, size_t>(distance(ca->snps_cond.begin(), it), i));
+		}
+	}
+
+	// Extract data we want
+	map<size_t, size_t>::iterator itmap = snp_map.begin();
+	size_t m = snp_map.size();
+	while (itmap != snp_map.end()) {
+		snps1.push_back(ca->snps_cond[itmap->first]);
+		betas1.push_back(ca->b_cond[itmap->first]);
+		ses1.push_back(ca->se_cond[itmap->first]);
+		pvals1.push_back(ca->p_cond[itmap->first]);
+		mafs1.push_back(ca->maf_cond[itmap->first]);
+		ns1.push_back(ca->n_cond[itmap->first]);
+
+		snps2.push_back(ph->snp_name[itmap->second]);
+		betas2.push_back(ph->beta[itmap->second]);
+		ses2.push_back(ph->se[itmap->second]);
+		pvals2.push_back(ph->pval[itmap->second]);
+		mafs2.push_back(ph->freq[itmap->second]);
+		ns2.push_back(ph->n[itmap->second]);
 
 		itmap++;
 	}

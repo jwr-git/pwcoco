@@ -64,6 +64,7 @@ class mdata {
 public:
 	mdata(phenotype *ph1, phenotype *ph2);
 	mdata(cond_analysis *ca1, cond_analysis *ca2);
+	mdata(cond_analysis *ca, phenotype *ph);
 	mdata();
 
 	vector<string> &get_snp_list() {

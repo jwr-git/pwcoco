@@ -100,7 +100,7 @@ private:
 
 	double a_ld_window; // Distance in kb after which SNPs are considered to be in LD
 
-	size_t num_ind_snps; // Amount of SNPs selected after stepwise selection
+	size_t num_ind_snps; // Amount of SNPs selected after stepwise selection; can be 0 if the unconditional data are to be used or -1 so no SNPs are excluded in the conditional
 	vector<size_t> ind_snps; // Position of SNPs selected after stepwise selection
 
 	// Joint analysis related

@@ -796,7 +796,7 @@ mdata::mdata(phenotype *ph1, phenotype *ph2)
 			if (ph2->beta[d2] == 0.0 || isnan(ph2->beta[d2]) || isinf(ph2->beta[d2]) || !isfinite(ph2->beta[d2])
 				|| isnan(ph2->se[d2]) || isinf(ph2->se[d2]) || !isfinite(ph2->se[d2]))
 			{
-				// Clean your own damn data!
+				// Clean your own data!
 				continue;
 			}
 

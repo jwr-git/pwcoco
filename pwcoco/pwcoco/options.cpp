@@ -227,22 +227,67 @@ void option(int option_num, char* option_str[])
 	out_analysis->find_independent_snps(ref);
 
 	cout << "There are " << exp_analysis->get_num_ind() << " selected SNPs in the exposure dataset and " << out_analysis->get_num_ind() << " in the outcome dataset." << endl;
-	cout << "Performing " << exp_analysis->get_num_ind() * out_analysis->get_num_ind() << " conditional and colocalisation analyses." << endl;
+	cout << "Performing " << (exp_analysis->get_num_ind() == 0 ? 1 : exp_analysis->get_num_ind()) * (out_analysis->get_num_ind() == 0 ? 1 : out_analysis->get_num_ind()) << " conditional and colocalisation analyses." << endl;
 	
-	// Perform PWCOCO!
-	for (int i = 0; i < exp_analysis->get_num_ind(); i++)
+	// If both of the conditionals failed - don't continue
+	if (exp_analysis->get_num_ind() == 0 && out_analysis->get_num_ind() == 0) 
 	{
-		exp_analysis->pw_conditional(exp_analysis->get_num_ind() > 1 ? (int)i : -1, ref); // Be careful not to remove the only independent SNP
+		cout << "Both conditional analyses failed to run and so no colocalisation will be run." << endl;
+		return;
+	}
+
+	// Perform PWCoCo!
+	// TODO There's a clearer way to do this for sure
+	string exp_snp_name = "", out_snp_name = "";
+	if (exp_analysis->get_num_ind() == 0) 
+	{
+		exp_snp_name = "[Unconditioned]";
 		for (int j = 0; j < out_analysis->get_num_ind(); j++)
 		{
-			out_analysis->pw_conditional(out_analysis->get_num_ind() > 1 ? (int)j : -1, ref);
+			out_analysis->pw_conditional(out_analysis->get_num_ind() > 1 ? (int)j : -1, ref); // Be careful not to remove the only independent SNP
+			out_snp_name = out_analysis->get_ind_snp_name(j);
 
 			mdata *matched_conditional = new mdata(exp_analysis, out_analysis);
 			coloc_analysis *conditional_coloc = new coloc_analysis(matched_conditional, 1e-4, 1e-4, 1e-5);
-			initial_coloc->init_coloc(exp_analysis->get_ind_snp_name(i), out_analysis->get_ind_snp_name(j));
+			initial_coloc->init_coloc(exp_snp_name, out_snp_name);
 
 			delete(matched_conditional);
 			delete(conditional_coloc);
+		}
+	}
+	else if (out_analysis->get_num_ind() == 0)
+	{
+		out_snp_name = "[Unconditioned]";
+		for (int i = 0; i < exp_analysis->get_num_ind(); i++)
+		{
+			exp_analysis->pw_conditional(exp_analysis->get_num_ind() > 1 ? (int)i : -1, ref); // Be careful not to remove the only independent SNP
+			exp_snp_name = exp_analysis->get_ind_snp_name(i);
+
+			mdata *matched_conditional = new mdata(exp_analysis, out_analysis);
+			coloc_analysis *conditional_coloc = new coloc_analysis(matched_conditional, 1e-4, 1e-4, 1e-5);
+			initial_coloc->init_coloc(exp_snp_name, out_snp_name);
+
+			delete(matched_conditional);
+			delete(conditional_coloc);
+		}
+	}
+	else {
+		for (int i = 0; i < exp_analysis->get_num_ind(); i++)
+		{
+			exp_analysis->pw_conditional(exp_analysis->get_num_ind() > 1 ? (int)i : -1, ref); // Be careful not to remove the only independent SNP
+			exp_snp_name = exp_analysis->get_ind_snp_name(i);
+			for (int j = 0; j < out_analysis->get_num_ind(); j++)
+			{
+				out_analysis->pw_conditional(out_analysis->get_num_ind() > 1 ? (int)j : -1, ref);
+				out_snp_name = out_analysis->get_ind_snp_name(j);
+
+				mdata *matched_conditional = new mdata(exp_analysis, out_analysis);
+				coloc_analysis *conditional_coloc = new coloc_analysis(matched_conditional, 1e-4, 1e-4, 1e-5);
+				initial_coloc->init_coloc(exp_snp_name, out_snp_name);
+
+				delete(matched_conditional);
+				delete(conditional_coloc);
+			}
 		}
 	}
 
