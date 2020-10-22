@@ -144,7 +144,7 @@ void cond_analysis::match_gwas_phenotype(phenotype *pheno, reference *ref)
 	}
 
 	if (unmatched) {
-		cout << "[" << pheno->get_phenoname() << "] There were " << unmatched << " SNPs that had a large difference in the allele frequency to that of the reference sample." << endl;
+		spdlog::info("[{}] There were {} SNPs that had a large difference in the allele frequency to that of the reference sample.", pheno->get_phenoname(), unmatched);
 		string filename = a_out + "." + pheno->get_phenoname() + ".badfreq";
 		ofstream file(filename.c_str());
 
@@ -161,10 +161,11 @@ void cond_analysis::match_gwas_phenotype(phenotype *pheno, reference *ref)
 	fam_ids_inc = ref->fam_ids_inc;
 
 	if (to_include.empty()) {
-		ShowError("Included list of SNPs is empty - could not match SNPs from phenotype file with reference SNPs.");
+		spdlog::critical("Included list of SNPs is empty - could not match SNPs from phenotype file with reference SNPs.");
+		return;
 	}
 	else {
-		cout << "[" << cname << "] Total amount of SNPs matched from phenotype file with reference SNPs are: " << to_include.size() << endl;
+		spdlog::info("[{}] Total amount of SNPs matched from phenotype file with reference SNPs are: {}.", cname, to_include.size());
 	}
 
 	// Resize and get ready for the conditional analysis
@@ -206,9 +207,9 @@ void cond_analysis::stepwise_select(vector<size_t> &selected, vector<size_t> &re
 		//m = min_element(p_temp.begin(), p_temp.end()) - p_temp.begin();
 		m = max_element(chisq.begin(), chisq.end()) - chisq.begin();;
 
-	cout << "[" << cname << "] Selected SNP " << ja_snp_name[m] << " with chisq " << ja_chisq[m] << " and pval " << ja_pval[m] << endl;
+	spdlog::info("[{}] Selected SNP {} with chisq {} and pval {}.", cname, ja_snp_name[m], ja_chisq[m], ja_pval[m]);
 	if (ja_pval[m] >= a_p_cutoff) {
-		cout << "[" << cname << "] SNP did not meet threshold." << endl;
+		spdlog::info("[{}] SNP did not meet threshold.", cname);
 		return;
 	}
 	selected.push_back(m);
@@ -219,7 +220,7 @@ void cond_analysis::stepwise_select(vector<size_t> &selected, vector<size_t> &re
 	}
 
 	if (a_p_cutoff > 1e-3) {
-		ShowWarning("P value level is too low for stepwise model.", a_verbose);
+		spdlog::warn("P value level is too low for stepwise model.");
 	}
 
 	while (!remain.empty()) {
@@ -229,7 +230,7 @@ void cond_analysis::stepwise_select(vector<size_t> &selected, vector<size_t> &re
 		else
 			break;
 		if (selected.size() % 5 == 0 && selected.size() > prev_num)
-			cout << "[" << cname << "] " << selected.size() << " associated SNPs have been selected." << endl;
+			spdlog::info("[{}] {} associated SNPs have been selected.", cname, selected.size());
 		if (selected.size() > prev_num)
 			prev_num = selected.size();
 		if (selected.size() >= a_top_snp)
@@ -237,11 +238,11 @@ void cond_analysis::stepwise_select(vector<size_t> &selected, vector<size_t> &re
 	}
 
 	if (a_p_cutoff > 1e-3) {
-		cout << "Performing backward elimination..." << endl;
+		spdlog::info("Performing backward elimination...");
 		selected_stay(selected, bC, bC_se, pC, ref);
 	}
 
-	cout << "[" << cname << "] Finally, " << selected.size() << " associated SNPs have been selected." << endl;
+	spdlog::info("[{}] Finally, {} associated SNPs have been selected.", cname, selected.size());
 }
 
 bool cond_analysis::insert_B_Z(const vector<size_t> &idx, size_t pos, reference *ref)
@@ -461,9 +462,9 @@ bool cond_analysis::select_entry(vector<size_t> &selected, vector<size_t> &remai
 
 	while (true) {
 		m = min_element(pC_temp.begin(), pC_temp.end()) - pC_temp.begin();
-		cout << "[" << cname << "] Selected entry SNP " << ja_snp_name[m] << " with cpval " << pC_temp[m] << endl;
+		spdlog::info("[{}] Selected entry SNP {} with cpval {}.", cname, ja_snp_name[m], pC_temp[m]);
 		if (pC_temp[m] >= a_p_cutoff) {
-			cout << "[" << cname << "] " << ja_snp_name[m] << " does not meet threshold" << endl;
+			spdlog::info("[{}] {} does not meet threshold", cname, ja_snp_name[m]);
 			return false;
 		}
 
@@ -483,7 +484,8 @@ void cond_analysis::selected_stay(vector<size_t> &select, eigenVector &bJ, eigen
 {
 	if (B_N.cols() < 1) {
 		if (!init_b(select, ref)) {
-			ShowError("Stepwise Selection Error: There is a collinearity problem with the given list of SNPs.");
+			spdlog::critical("There is a collinearity problem with the given list of SNPs.");
+			return;
 		}
 	}
 
@@ -496,7 +498,7 @@ void cond_analysis::selected_stay(vector<size_t> &select, eigenVector &bJ, eigen
 			jma_snpnum_backward++;
 			erase_B_and_Z(select, select[m]);
 			select.erase(select.begin() + m);
-			cout << "[" << cname << "] Erasing SNP " << ja_snp_name[m] << endl;
+			spdlog::info("[{}] Erasing SNP {}.", cname, ja_snp_name[m]);
 		}
 		else {
 			break;
@@ -512,7 +514,8 @@ void cond_analysis::massoc_conditional(const vector<size_t> &selected, vector<si
 
 	if (B_N.cols() < 1) {
 		if (!init_b(selected, ref)) {
-			ShowError("Conditional Error: There is a collinearity problem with the SNPs given.\n");
+			spdlog::critical("There is a collinearity problem with the SNPs given.");
+			return;
 		}
 	}
 
@@ -563,11 +566,13 @@ double cond_analysis::massoc_calcu_Ve(const vector<size_t> &selected, eigenVecto
 
 	d_temp = v_calc_median(nD_temp);
 	if (d_temp - n < 1) {
-		ShowError("DoF Error: Model is over-fitting due to lack of degree of freedom. Provide a more stringent P-value cutoff.");
+		spdlog::critical("DoF Error: Model is over-fitting due to lack of degree of freedom. Provide a more stringent P-value cutoff.");
+		return 0.0;
 	}
 	Ve = ((d_temp - 1) * jma_Vp - Ve) / (d_temp - n);
 	if (Ve <= 0.0) {
-		ShowError("Residual Error: Residual variance is out of bounds meaning the model is over-fitting. Provide a more stringent P-value cutoff.");
+		spdlog::critical("Residual Error: Residual variance is out of bounds meaning the model is over-fitting. Provide a more stringent P-value cutoff.");
+		return 0.0;
 	}
 	return Ve;
 }
@@ -705,8 +710,10 @@ void cond_analysis::massoc_joint(const vector<size_t> &idx, eigenVector &bJ, eig
 		b[i] = ja_beta[idx[i]];
 
 	if (B_N.cols() < 1) {
-		if (!init_b(idx, ref))
-			ShowError("`massoc_joint`: There is a collinearity problem with the given list of SNPs.");
+		if (!init_b(idx, ref)) {
+			spdlog::critical("There is a collinearity problem with the given list of SNPs.");
+			return;
+		}
 	}
 	
 	bJ.resize(n);
@@ -729,53 +736,6 @@ void cond_analysis::massoc_joint(const vector<size_t> &idx, eigenVector &bJ, eig
 	}
 }
 
-vector<size_t> cond_analysis::read_snplist(string snplist, vector<size_t> &remain, reference *ref)
-{
-	size_t i = 0, n = to_include.size();
-	vector<string> givenSNPs;
-	vector<size_t> pgiven;
-	string temp;
-	ifstream i_snplist(snplist.c_str());
-	
-	// Read from file
-	givenSNPs.clear();
-	if (!i_snplist) {
-		ShowError("IO Error: Cannot read " + snplist + " to read SNP list.");
-	}
-	cout << "Reading SNPs upon which to condition from " + snplist + "." << endl;
-	while (i_snplist >> temp) {
-		givenSNPs.push_back(temp);
-		getline(i_snplist, temp);
-	}
-	i_snplist.close();
-	if (givenSNPs.empty()) {
-		ShowError("No SNPs were read from the SNP list file - please check the format of this file.");
-	}
-
-	map<string, int> m_gSNPs;
-	size_t snps_size = givenSNPs.size();
-	pgiven.clear();
-	remain.clear();
-	for (i = 0; i < snps_size; i++) {
-		m_gSNPs.insert(pair<string, int>(givenSNPs[i], static_cast<int>(i)));
-	}
-	for (i = 0; i < n; i++) {
-		if (m_gSNPs.find(ref->bim_snp_name[to_include[i]]) != m_gSNPs.end()) {
-			pgiven.push_back(i);
-		}
-		else {
-			remain.push_back(i);
-		}
-	}
-	if (pgiven.size() > 0) {
-		cout << pgiven.size() << " conditional SNP(s) were matched to the reference dataset." << endl;
-	}
-	else {
-		ShowError("None of the SNPs from the SNP list could be matched. Please double check the datasets.");
-	}
-	return pgiven;
-}
-
 /*
  * Determine number of independent association signals within the region
  * without conducting a conditional analysis.
@@ -788,20 +748,20 @@ void cond_analysis::find_independent_snps(reference *ref)
 	if (a_top_snp <= 0.0)
 		a_top_snp = 1e10;
 
-	cout << "[" << cname << "] Performing stepwise model selection on " << to_include.size() << " SNPs; p cutoff = " << a_p_cutoff << ", collinearity = " << a_collinear << " assuming complete LE between SNPs more than " << a_ld_window / 1e6 << " Mb away)." << endl;
+	spdlog::info("[{}] Performing stepwise model selection on {} SNPs; p cutoff = {}, collinearity = {} assuming complete LE between SNPs more than {} Mb away).", cname, to_include.size(), a_p_cutoff, a_collinear, a_ld_window / 1e6);
 	stepwise_select(selected, remain, bC, bC_se, pC, ref);
 
 	if (selected.empty()) {
-		cout << "Conditional Warning: No SNPs have been selected by the step-wise selection algorithm. Using the unconditioned dataset." << endl;
+		spdlog::warn("[{}] No SNPs have been selected by the step-wise selection algorithm. Using the unconditioned dataset.", cname);
 
 		num_ind_snps = 0;
 		return;
 	}
 	else if (selected.size() >= fam_ids_inc.size()) {
-		ShowError("Conditional Error: Too many SNPs. The number of SNPs should not be larger than the sample size.");
+		spdlog::warn("[{}] Too many SNPs. The number of SNPs should not be larger than the sample size.", cname);
 	}
 
-	cout << "[" << cname << "] (" << jma_snpnum_backward << " SNPs eliminated by backward selection.)" << endl;
+	spdlog::info("[{}] ({} SNPs eliminated by backward selection.)", cname, jma_snpnum_backward);
 
 	num_ind_snps = selected.size();
 	ind_snps = selected;
@@ -914,8 +874,10 @@ void cond_analysis::sanitise_output(vector<size_t> &selected, string name, eigen
 	ofstream ofile(filename.c_str());
 	size_t i = 0, j = 0;
 	
-	if (!ofile)
-		ShowError("Cannot open file \"" + filename + "\" for writing.");
+	if (!ofile) {
+		spdlog::warn("Cannot open file {} for writing.", filename);
+		return;
+	}
 
 	// Header
 	ofile << "Chr\tSNP\tbp\trefA\tfreq\tb\tse\tp\tn\tfreq_geno\tbC\tbC_se\tpC";

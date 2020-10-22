@@ -25,11 +25,6 @@ int main(int argc, char* argv[])
 	cout << " * '-----------'                                     `                             `                *" << endl;
 	cout << " ****************************************************************************************************" << endl;
 
-	chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-	chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-
-	cout << "Options: " << endl;
-
 	try {
 		option(argc, argv);
 	}
@@ -39,9 +34,6 @@ int main(int argc, char* argv[])
 	catch (const char* err_msg) {
 		cerr << "\n" << err_msg << endl;
 	}
-
-	cout << "Analysis finished.\nComputational time: " << (std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()) / 1000000.0 << " (secs)" << endl; // Change me to make me better please
-
 	return 0;
 }
 
@@ -56,10 +48,10 @@ void option(int option_num, char* option_str[])
 	unsigned short chr = 0;
 	int i = 0, top_snp = -1;
 	double p_cutoff = 5e-8, collinear = 0.9, maf = 0.0, ld_window = 1.0e7,
-		freq_threshold = 0.2;
+		freq_threshold = 0.2, init_h4 = 80;
 	string bfile = "", bim_file = "", fam_file = "", bed_file = "",
 		phen1_file = "", phen2_file = "",
-		out = "", snplist = "",
+		out = "pwcoco_out", log = "pwcoco_log", snplist = "",
 		opt;
 	bool verbose = true;
 
@@ -72,7 +64,6 @@ void option(int option_num, char* option_str[])
 		/* Required flags */
 		if (opt == "--bfile") {
 			bfile = option_str[++i];
-			cout << "Using " << bfile << " as .bfile." << endl;
 
 			if (bfile.substr(bfile.length() - 5) == ".bfile")
 				bfile = bfile.substr(0, bfile.length() - 5);
@@ -84,17 +75,14 @@ void option(int option_num, char* option_str[])
 		}
 		else if (opt == "--phen1_file") {
 			phen1_file = option_str[++i];
-			cout << "Using " << phen1_file << " as phenotype 1 file." << endl;
 		}
 		else if (opt == "--phen2_file") {
 			phen2_file = option_str[++i];
-			cout << "Phenotype 2 file is: " << phen2_file << endl;
 		}
 
 		/* Optional */
-		else if (opt == "--snp_list") {
-			snplist = option_str[++i];
-			cout << "Using " << snplist << " as list of SNPs upon which to condition." << endl;
+		else if (opt == "--log") {
+			log = option_str[++i];
 		}
 		else if (opt == "--p_cutoff") {
 			p_cutoff = stod(option_str[++i]);
@@ -110,112 +98,161 @@ void option(int option_num, char* option_str[])
 		}
 		else if (opt == "--top_snp") {
 			top_snp = stoi(option_str[++i]);
-			if (top_snp < 1 || top_snp > 10000) {
-				top_snp = (top_snp <= 1 ? 1 : top_snp >= 10000 ? 10000 : top_snp);
-			}
 		}
 		else if (opt == "--ld_window") {
 			ld_window = stoi(option_str[++i]);
-			if (ld_window > 100000) {
-				cout << "LD window was set too high, capping at 100,000." << endl;
-				ld_window = 10000;
-			}
-			ld_window *= 1000;
 		}
 		else if (opt == "--collinear") {
 			collinear = stod(option_str[++i]);
-			if (collinear < 0.01 || collinear > 0.99) {
-				cout << "Collinearity check should be in the range (0.01, 0.99), capping value given within this range." << endl;
-				collinear = (collinear <= 0.01 ? 0.01 : collinear >= 0.99 ? 0.99 : collinear);
-			}
 		}
 		else if (opt == "--maf") {
 			maf = stod(option_str[++i]);
-			if (maf < 0.0 || maf > 0.5) {
-				cout << "MAF flag should be within the range of (0.0, 0.5). Clipping to be within this range." << endl;
-				maf = (maf < 0.0 ? 0.0 : maf > 0.5 ? 0.5 : maf);
-			}
 		}
 		else if (opt == "--freq_threshold") {
 			freq_threshold = stod(option_str[++i]);
-			if (freq_threshold < 0.0 || freq_threshold > 1.0) {
-				cout << "Allele frequency threshold is not within the range of (0.0, 1.0). Clipping to be within this range." << endl;
-				freq_threshold = (freq_threshold < 0.0 ? 0.0 : freq_threshold > 1.0 ? 1.0 : freq_threshold);
-			}
+		}
+		else if (opt == "--init_h4") {
+			init_h4 = stod(option_str[++i]);
 		}
 	}
-	cout << "Using P cutoff of " << p_cutoff << "." << endl;
+
+	// First set up the logger
+	try {
+		auto logger = spdlog::basic_logger_mt("pwcoco_log", log + ".txt");
+		spdlog::set_default_logger(logger);
+	}
+	catch (const spdlog::spdlog_ex &ex) {
+		cout << "Log setup failed: " << ex.what() << " - attempting to create default log \"pwococ_log.txt\"." << endl;
+		auto logger = spdlog::basic_logger_mt("pwcoco_log", "pwcoco_log.txt");
+		spdlog::set_default_logger(logger);
+	}
+	spdlog::flush_every(std::chrono::seconds(10));
+
+	// Some analytics why not?
+	chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+
+	spdlog::info("Options: ");
+	spdlog::info("Using {} as reference files (.bfile, etc.)", bfile);
+	spdlog::info("Using {} and {} as phenotype files.", phen1_file, phen2_file);
+	spdlog::info("Using P cutoff of {}", p_cutoff);
 
 	// .bim file MUST be supplied
 	if (bim_file.compare("") == 0) {
-		ShowError("No .bim file found; a .bim file MUST be supplied!");
+		spdlog::critical("No .bim file found; a .bim file MUST be supplied!");
+		return;
 	}
 	else if (!file_exists(bim_file)) {
-		ShowError("IO Error: .bim file \"" + bim_file + "\" cannot be opened.");
+		spdlog::critical(".bim file {} cannot be opened.", bim_file);
+		return;
 	}
 
 	// .fam file MUST be supplied
 	if (fam_file.compare("") == 0) {
-		ShowError("No .fam file found; a .fam file MUST be supplied!");
+		spdlog::critical("No .fam file found; a .fam file MUST be supplied!");
+		return;
 	}
 	else if (!file_exists(fam_file)) {
-		ShowError("IO Error: .fam file \"" + fam_file + "\" cannot be opened.");
+		spdlog::critical(".fam file {} cannot be opened.", fam_file);
+		return;
 	}
 
 	// Check phenotype 1 file before continuing
 	if (phen1_file.compare("") == 0) {
-		ShowError("Phenotype 1 file has not been supplied, please supply this before continuing.");
+		spdlog::critical("Phenotype 1 file has not been supplied, please supply this before continuing.");
+		return;
 	}
 	else if (!file_exists(phen1_file)) {
-		ShowError("IO Error: Cannot open the phenotype 1 file: " + phen1_file + " for reading.");
-	}
-
-	// Check snplist before continuing
-	if (snplist.compare("") != 0 && !file_exists(snplist)) {
-		ShowError("IO Error: Cannot open the snplist file: " + snplist + " for reading.");
+		spdlog::critical("Cannot open the phenotype 1 file: {} for reading.", phen1_file);
+		return;
 	}
 
 	// Check phenotype 2 file if given
 	if (phen2_file.compare("") != 0 && !file_exists(phen2_file)) {
-		ShowError("IO Error: Phenotype 2 file given but cannot open: " + phen2_file + " for reading.");
-	}
-
-	// Default output if not given
-	if (out.compare("") == 0) {
-		out = "results";
+		spdlog::critical("Phenotype 2 file given but cannot open: {} for reading.", phen2_file);
+		return;
 	}
 
 	if (chr < 1 || chr > 23) {
-		ShowError("Chromosome is out of bounds: " + chr);
+		spdlog::warn("Chromosome is out of bounds: {}", chr);
 	}
 	else {
-		cout << "Limiting analysis to chromosome " << chr << "." << endl;
+		spdlog::info("Limiting analysis to chromosome {}.", chr);
 	}
+
+	// Check values are within bounds
+	if (top_snp < 1 || top_snp > 10000) {
+		top_snp = (top_snp <= 1 ? 1 : top_snp >= 10000 ? 10000 : top_snp);
+	}
+
+	if (ld_window > 100000) {
+		spdlog::info("LD window was set too high, capping at 100,000.");
+		ld_window = 10000;
+	}
+	ld_window *= 1000;
+
+	if (collinear < 0.01 || collinear > 0.99) {
+		spdlog::info("Collinearity check should be in the range (0.01, 0.99), capping value given within this range.");
+		collinear = (collinear <= 0.01 ? 0.01 : collinear >= 0.99 ? 0.99 : collinear);
+	}
+
+	if (maf < 0.0 || maf > 0.5) {
+		spdlog::info("MAF flag should be within the range of (0.0, 0.5). Clipping to be within this range.");
+		maf = (maf < 0.0 ? 0.0 : maf > 0.5 ? 0.5 : maf);
+	}
+
+	if (freq_threshold < 0.0 || freq_threshold > 1.0) {
+		spdlog::info("Allele frequency threshold is not within the range of (0.0, 1.0). Clipping to be within this range.");
+		freq_threshold = (freq_threshold < 0.0 ? 0.0 : freq_threshold > 1.0 ? 1.0 : freq_threshold);
+	}
+
+	if (init_h4 < 0.0 || init_h4 > 100.0) {
+		spdlog::info("Initial colocalisation H4 not within range of (0.0, 100.0). Clipping to be within this range.");
+		spdlog::info("If you would like to continue with PWCoCo regardless of the initial result, please set value to 0.0");
+		init_h4 = (init_h4 < 0.0 ? 0.0 : init_h4 > 100.0 ? 100.0 : init_h4);
+	}
+	init_h4 /= 100;
 
 	// First pass through - match data and perform coloc
 	phenotype *exposure = init_pheno(phen1_file, "exposure");
 	phenotype *outcome = init_pheno(phen2_file, "outcome");
+	if (exposure->has_failed() || outcome->has_failed()) {
+		spdlog::critical("Reading of either phenotype file failed; have these been moved or altered?");
+		return;
+	}
 
 	mdata *matched = new mdata(exposure, outcome);
 	coloc_analysis *initial_coloc = new coloc_analysis(matched, 1e-4, 1e-4, 1e-5);
 	initial_coloc->init_coloc();
 
-	if (initial_coloc->pp_abf[H4] >= 0.80) { // TODO user-specified flag
-		cout << "Stopping algorthim as H4 for initial colocalisation analysis is already at or above 80%." << endl;
-		//return;
+	if (initial_coloc->pp_abf[H4] > init_h4) { // TODO user-specified flag
+		spdlog::info("Stopping algorthim as H4 for initial colocalisation analysis is already at or above threshold ({}%).", init_h4);
+		return;
 	}
 
 	// Initialise the reference
 	reference *ref = new reference(out, chr, verbose);
 
-	ref->read_bimfile(bim_file); // No need to do this for the outcome dataset as well as they have already been matched
+	// Bim-related first
+	if (ref->read_bimfile(bim_file) == 0) { // No need to do this for the outcome dataset as well as they have already been matched
+		return;
+	}
 	ref->match_bim(exposure->get_snp_names(), outcome->get_snp_names());
 	ref->sanitise_list();
-	ref->read_famfile(fam_file);
-	ref->read_bedfile(bed_file);
+
+	// Fam-related
+	if (ref->read_famfile(fam_file) == 0) {
+		return;
+	}
+
+	// Finally bed-related
+	if (ref->read_bedfile(bed_file) == 0) {
+		return;
+	}
 	ref->calculate_allele_freq();
-	if (maf > 0.0)
-		ref->filter_snp_maf(maf);
+	if (maf > 0.0) {
+		if (ref->filter_snp_maf(maf) == 0)
+			return;
+	}
 
 	// Find each independent SNPs for both exposure and outcome data
 	cond_analysis *exp_analysis = new cond_analysis(p_cutoff, collinear, ld_window, out, verbose, top_snp, freq_threshold, "exposure");
@@ -226,13 +263,13 @@ void option(int option_num, char* option_str[])
 	out_analysis->init_conditional(outcome, ref);
 	out_analysis->find_independent_snps(ref);
 
-	cout << "There are " << exp_analysis->get_num_ind() << " selected SNPs in the exposure dataset and " << out_analysis->get_num_ind() << " in the outcome dataset." << endl;
-	cout << "Performing " << (exp_analysis->get_num_ind() == 0 ? 1 : exp_analysis->get_num_ind()) * (out_analysis->get_num_ind() == 0 ? 1 : out_analysis->get_num_ind()) << " conditional and colocalisation analyses." << endl;
+	spdlog::info("There are {} selected SNPs in the exposure dataset and {} in the outcome dataset.", exp_analysis->get_num_ind(), out_analysis->get_num_ind());
+	spdlog::info("Performing {} conditional and colocalisation analyses.", (exp_analysis->get_num_ind() == 0 ? 1 : exp_analysis->get_num_ind()) * (out_analysis->get_num_ind() == 0 ? 1 : out_analysis->get_num_ind()));
 	
 	// If both of the conditionals failed - don't continue
 	if (exp_analysis->get_num_ind() == 0 && out_analysis->get_num_ind() == 0) 
 	{
-		cout << "Both conditional analyses failed to run and so no colocalisation will be run." << endl;
+		spdlog::warn("Both conditional analyses failed to run and so no colocalisation will be run.");
 		return;
 	}
 
@@ -291,5 +328,7 @@ void option(int option_num, char* option_str[])
 		}
 	}
 
+	chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+	spdlog::info("Analysis finished.\nComputational time: {} secs", (std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()) / 1000000.0);
 	return;
 }

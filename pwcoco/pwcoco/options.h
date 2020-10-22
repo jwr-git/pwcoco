@@ -6,6 +6,8 @@
 #include <omp.h>
 #include <time.h>
 #include <thread>
+#include "spdlog/spdlog.h"
+#include "spdlog/sinks/basic_file_sink.h"
 
 #include "data.h"
 #include "conditional.h"

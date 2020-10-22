@@ -10,6 +10,8 @@
 #include <string>
 #include <sstream>
 #include <vector>
+#include "spdlog/spdlog.h"
+#include "spdlog/sinks/basic_file_sink.h"
 
 #include "helper_funcs.h"
 
@@ -38,6 +40,10 @@ public:
 		return snp_name;
 	}
 
+	bool has_failed() {
+		return failed;
+	}
+
 	// From phenotype file
 	vector<string> snp_name;
 	vector<string> allele1;
@@ -56,6 +62,8 @@ public:
 private:
 	string pheno_name;
 	double pheno_variance; /// Estimated phenotypic variance from summary stats
+
+	bool failed; // Phenotype reading failed in some way
 };
 
 phenotype *init_pheno(string filename, string pheno_name);
@@ -90,14 +98,14 @@ public:
 	reference();
 	void reference_clear();
 
-	void read_bimfile(string bimfile);
-	void read_famfile(string famfile);
-	void read_bedfile(string bedfile);
+	int read_bimfile(string bimfile);
+	int read_famfile(string famfile);
+	int read_bedfile(string bedfile);
 	void bim_clear();
 	void fam_clear();
 	void match_bim(vector<string> &names, vector<string> &names2);
 
-	void filter_snp_maf(double maf);
+	int filter_snp_maf(double maf);
 	void sanitise_list();
 	void pair_fam();
 	void calculate_allele_freq();
@@ -106,6 +114,10 @@ public:
 
 	void includes_clear() {
 		to_include.clear();
+	}
+
+	bool has_failed() {
+		return failed;
 	}
 
 	// From .bim
@@ -130,6 +142,7 @@ private:
 	string a_out;
 	bool a_verbose;
 	unsigned short a_chr;
+	bool failed; // Reference files failed to read in some way
 
 	// From .bim file
 	vector<size_t> bim_og_pos; /// Original position in the .bim file

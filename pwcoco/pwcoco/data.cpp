@@ -80,9 +80,11 @@ void phenotype::read_phenofile(string filename)
 
 	ifstream pfile(filename.c_str());
 	if (!pfile) {
-		throw ("IO Error: phenotype file cannot be opened for reading: " + filename + ".");
+		spdlog::critical("Phenotype file cannot be opened for reading: {}.", filename);
+		failed = true;
+		return;
 	}
-	cout << "Reading data from phenotype file: " + filename + "." << endl;
+	spdlog::info("Reading data from phenotype file: {}.", filename);
 	//phenotype_clear(pheno);
 
 	// Iterate through bim file and save data
@@ -152,7 +154,8 @@ void phenotype::read_phenofile(string filename)
 		h = 2.0 * freq[count] * (1.0 - freq[count]);
 		Vp = h * n[count] * se[count] * se[count] + h * beta[count] * beta[count] * n[count] / (n[count] - 1.0);
 		if (Vp < 0.0) {
-			ShowError("Error in reading phenotype file \"" + filename + "\": variance is less than zero.");
+			spdlog::critical("Error in reading phenotype file {}: variance is less than zero (Vp = {}).", filename, Vp);
+			failed = true;
 		}
 		Vp_v.push_back(Vp);
 
@@ -161,8 +164,8 @@ void phenotype::read_phenofile(string filename)
 	pfile.close();
 	pheno_variance = v_calc_median(Vp_v);
 
-	cout << "Read a total of: " << snp_name.size() << " lines in phenotype file \"" << filename << "\"." << endl;
-	cout << "Phenotypic variance estimated from summary statistcs of all SNPs: " << pheno_variance << "." << endl;
+	spdlog::info("Read a total of: {} lines in phenotype file {}.", snp_name.size(), filename);
+	spdlog::info("Phenotypic variance estimated from summary statistcs of all SNPs: {}", pheno_variance);
 }
 
 /*
@@ -214,7 +217,7 @@ void reference::reference_clear()
  * @param string bimfile File name and path to .bim file
  * @ret void
  */
-void reference::read_bimfile(string bimfile)
+int reference::read_bimfile(string bimfile)
 {
 	string line;
 	int count = 0;
@@ -235,11 +238,12 @@ void reference::read_bimfile(string bimfile)
 	// Prepare for bim reading
 	ifstream bim(bimfile.c_str());
 	if (bim.fail()) {
-		throw ("IO Error: bim file cannot be opened for reading: " + bimfile + ".");
+		spdlog::critical("Bim file cannot be opened for reading: {}.", bimfile);
+		failed = true;
+		return 0;
 	}
-	cout << "Reading data from bim file: " + bimfile + "." << endl;
+	spdlog::info("Reading data from bim file: {}.", bimfile);
 	bim_clear();
-
 	
 	while (bim.good()) {
 		bim >> bim_chr_buf;
@@ -364,7 +368,8 @@ void reference::read_bimfile(string bimfile)
 	ref_A = bim_allele1;
 	other_A = bim_allele2;
 	
-	cout << "Number of SNPs read from .bim file: " << num_snps << "." << endl;
+	spdlog::info("Number of SNPs read from .bim file: {}.", num_snps);
+	return 1;
 }
 
 /*
@@ -416,7 +421,7 @@ void reference::match_bim(vector<string> &names, vector<string> &names2)
 	ref_A = bim_allele1;
 	other_A = bim_allele2;
 
-	cout << "Number of SNPs matched from .bim file to the phenotype data: " << num_snps_matched << "." << endl;
+	spdlog::info("Number of SNPs matched from .bim file to the phenotype data: {}.", num_snps_matched);
 }
 
 /*
@@ -448,12 +453,12 @@ void reference::sanitise_list()
 		to_include[i] = bim_og_pos[i];
 
 		if (snp_map.find(bim_snp_name[i]) != snp_map.end()) {
-			cout << "Duplicated SNP ID (pos = " << i << "), name: " << bim_snp_name[i] << endl;
+			spdlog::info("Duplicated SNP ID (pos = {}), name: {}.", i, bim_snp_name[i]);
 
 			ss << bim_snp_name[i] << "_" << i + 1;
 			bim_snp_name[i] = ss.str();
 
-			ShowWarning("This SNP has been changed to \"" + bim_snp_name[i] + "\".", a_verbose);
+			spdlog::info("This SNP has been changed to {}.", bim_snp_name[i]);
 		}
 		else
 			ss << bim_snp_name[i];
@@ -471,7 +476,7 @@ void reference::sanitise_list()
  * @param string famfile File name and path to .fam file
  * @ret void
  */
-void reference::read_famfile(string famfile)
+int reference::read_famfile(string famfile)
 {
 	string line, tstr;
 	int count = 0;
@@ -479,9 +484,11 @@ void reference::read_famfile(string famfile)
 	// Prepare for bim reading
 	ifstream fam(famfile.c_str());
 	if (!fam) {
-		throw ("IO Error: fam file cannot be opened for reading: " + famfile + ".");
+		spdlog::critical("Fam file cannot be opened for reading: {}.", famfile);
+		failed = true;
+		return 0;
 	}
-	cout << "Reading data from fam file: " + famfile + "." << endl;
+	spdlog::info("Reading data from fam file: {}.", famfile);
 	fam_clear();
 
 	while (fam) {
@@ -538,9 +545,10 @@ void reference::read_famfile(string famfile)
 	fam.close();
 
 	individuals = fam_fid.size();
-	cout << "Successfully read " << individuals << " from .fam file." << endl;
+	spdlog::info("Successfully read {} from .fam file.", individuals);
 
 	pair_fam();
+	return 1;
 }
 
 /*
@@ -560,7 +568,7 @@ void reference::pair_fam()
 		fam_ids_inc[i] = i;
 		fam_map.insert(pair<string, size_t>(fam_fid[i] + ":" + fam_iid[i], i));
 		if (size == fam_map.size())
-			ShowError("Duplicate individual in .fam file found: \"" + fam_fid[i] + "\t" + fam_iid[i] + "\"."); /// Include IDs here probably
+			spdlog::warn("Duplicate individual in .fam file found: {}, {}.", fam_fid[i], fam_iid[i]); /// Include IDs here probably
 		size = fam_map.size();
 	}
 }
@@ -577,7 +585,7 @@ void reference::fam_clear() {
 	fam_pheno.clear();
 }
 
-void reference::filter_snp_maf(double maf)
+int reference::filter_snp_maf(double maf)
 {
 	map<string, size_t> id_map(snp_map);
 	map<string, size_t>::iterator it, end = id_map.end();
@@ -586,7 +594,7 @@ void reference::filter_snp_maf(double maf)
 	size_t prev_size = to_include.size();
 	double f = 0.0;
 
-	cout << "Filtering SNPs with MAF > " << maf << "." << endl;
+	spdlog::info("Filtering SNPs with MAF > {}.", maf);
 
 	to_include.clear();
 	snp_map.clear();
@@ -602,11 +610,14 @@ void reference::filter_snp_maf(double maf)
 		to_include.push_back(it->second);
 	}
 	
-	if (to_include.size() == 0)
-		ShowError("Data Error: After MAF filtering, no SNPs are retained for the analysis.");
+	if (to_include.size() == 0) {
+		spdlog::critical("After MAF filtering, no SNPs are retained for the analysis.");
+		return 0;
+	}
 
 	//stable_sort(to_include.begin(), to_include.end());
-	cout << "After filtering based on MAF, there are " << to_include.size() << " SNPs remaining in the analysis (amount removed: " << prev_size - to_include.size() << ")." << endl;
+	spdlog::info("After filtering based on MAF, there are {} SNPs remaining in the analysis (amount removed: {}).", to_include.size(), prev_size - to_include.size());
+	return 1;
 }
 
 /*
@@ -617,7 +628,7 @@ void reference::calculate_allele_freq()
 	const size_t n = to_include.size(),
 		m = fam_ids_inc.size();
 
-	cout << "Calculating allele frequencies from .fam data." << endl;
+	spdlog::info("Calculating allele frequencies from .fam data.");
 	mu.clear();
 	mu.resize(n);
 
@@ -661,7 +672,7 @@ void reference::get_read_individuals(vector<int> &read_individuals)
  * @param string bedfile File name and path to .bed file
  * @ret void
  */
-void reference::read_bedfile(string bedfile)
+int reference::read_bedfile(string bedfile)
 {
 	size_t i, j, k,
 		snp_idx, ind_idx;
@@ -672,19 +683,19 @@ void reference::read_bedfile(string bedfile)
 	char ch[1];
 	bitset<8> b;
 	fstream BIT(bedfile.c_str(), ios::in | ios::binary);
-	cout << "Reading .bed file..." << endl;
 
 	get_read_individuals(read_individuals);
 
 	if (!bim_size || !fam_size) {
-		ShowError("No data from either .bim or .fam files to continue with.");
-		return;
+		spdlog::critical("No data from either .bim or .fam files to continue with.");
+		return 0;
 	}
 
 	if (!BIT) {
-		ShowError("Cannot open " + bedfile + " to read.");
-		return;
+		spdlog::critical("Bed file cannot be opened for reading: {}.", bedfile);
+		return 0;
 	}
+	spdlog::info("Reading data from bed file: {}.", bedfile);
 
 	vector<vector<bool>>snp_1(bim_size, vector<bool>(fam_size, false));
 	vector<vector<bool>>snp_2(bim_size, vector<bool>(fam_size, false));
@@ -718,8 +729,10 @@ void reference::read_bedfile(string bedfile)
 		// SNP found - calculator allele frequency
 		for (j = 0, ind_idx = 0; j < individuals;) {
 			BIT.read(ch, 1);
-			if (!BIT)
-				ShowError("Cannot read the .bed file?");
+			if (!BIT) {
+				spdlog::critical("Cannot read the .bed file?");
+				return 0;
+			}
 
 			b = ch[0];
 			k = 0;
@@ -746,7 +759,8 @@ void reference::read_bedfile(string bedfile)
 	bed_snp_1.swap(snp_1);
 	bed_snp_2.swap(snp_2);
 
-	cout << "Genotype data for " << fam_size << " individuals and " << bim_size << " SNPs read." << endl;
+	spdlog::info("Genotype data for {} individuals and {} SNPs read.", fam_size, bim_size);
+	return 1;
 }
 
 /*

@@ -15,7 +15,7 @@ coloc_analysis::coloc_analysis(mdata *mdat, double pval1, double pval2, double p
 	log_abf_all = log_ABF_sum = 0.0;
 
 	matched = mdat;
-	cout << "Colocalisation analysis initialised with " << matched->snps1.size() << " SNPs." << endl;
+	spdlog::info("Colocalisation analysis initialised with {} SNPs.", matched->snps1.size());
 }
 
 /*
@@ -107,15 +107,15 @@ void coloc_analysis::combine_abf(size_t abf_size)
 void coloc_analysis::init_coloc()
 {
 	perform_coloc();
-	cout << "Unconditioned colocalisation results." << endl;
-	cout << "H0: " << pp_abf[H0] << " H1: " << pp_abf[H1] << " H2: " << pp_abf[H2] << " H3: " << pp_abf[H3] << " H4: " << pp_abf[H4] << "; " << log_abf_all << endl;
+	spdlog::info("Unconditioned colocalisation results.");
+	spdlog::info("H0: {:.2f}; H1: {:.2f}; H2: {:.2f}; H3: {:.2f}; H4: {:.2f}; abf_all: {:.2f}.", pp_abf[H0], pp_abf[H1], pp_abf[H2], pp_abf[H3], pp_abf[H4], log_abf_all);
 }
 
 void coloc_analysis::init_coloc(string snp1, string snp2)
 {
 	perform_coloc();
-	cout << "Conditioned results for SNP1: " << snp1 << ", SNP2: " << snp2 << endl;
-	cout << "H0: " << pp_abf[H0] << " H1: " << pp_abf[H1] << " H2: " << pp_abf[H2] << " H3: " << pp_abf[H3] << " H4: " << pp_abf[H4] << "; " << log_abf_all << endl;
+	spdlog::info("Conditioned results for SNP1: {}, SNP2: {}", snp1, snp2);
+	spdlog::info("H0: {:.2f}; H1: {:.2f}; H2: {:.2f}; H3: {:.2f}; H4: {:.2f}; abf_all: {:.2f}.", pp_abf[H0], pp_abf[H1], pp_abf[H2], pp_abf[H3], pp_abf[H4], log_abf_all);
 }
 
 void coloc_analysis::perform_coloc()
