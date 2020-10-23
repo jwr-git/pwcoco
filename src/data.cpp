@@ -7,6 +7,7 @@ phenotype::phenotype(string name)
 {
 	pheno_name = name;
 	pheno_variance = 0;
+	failed = false;
 }
 
 /*
@@ -16,6 +17,7 @@ phenotype::phenotype()
 {
 	pheno_name = "";
 	pheno_variance = 0;
+	failed = false;
 }
 
 void phenotype::phenotype_clear()
