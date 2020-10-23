@@ -118,7 +118,11 @@ void option(int option_num, char* option_str[])
 
 	// First set up the logger
 	vector<spdlog::sink_ptr> sinks;
+#ifdef _WIN32
 	sinks.push_back(make_shared<spdlog::sinks::wincolor_stdout_sink_st>());
+#else
+	sinks.push_back(make_shared<spdlog::sinks::ansicolor_stdout_sink_st>());
+#endif
 	try {
 		sinks.push_back(make_shared<spdlog::sinks::basic_file_sink_st>(log + ".txt"));
 		auto logger = make_shared<spdlog::logger>("pwcoco_log", begin(sinks), end(sinks)); 
