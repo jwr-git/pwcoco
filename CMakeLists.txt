@@ -7,7 +7,7 @@ set (CMAKE_C_STANDARD 11)
 project(PWCOCO VERSION 1.0)
 
 # add the executable
-add_executable(PWCOCO options.cpp coloc.cpp conditional.cpp data.cpp dcdflib.cpp helper_funcs.cpp)
+add_executable(PWCOCO src/options.cpp src/coloc.cpp src/conditional.cpp src/data.cpp src/dcdflib.cpp src/helper_funcs.cpp)
 
 # Eigen library
 if (DEFINED "$ENV{EIGEN3_INCLUDE_DIR}")
@@ -16,7 +16,7 @@ if (DEFINED "$ENV{EIGEN3_INCLUDE_DIR}")
     		message(FATAL_ERROR "Incorrect environment variable EIGEN3_INCLUDE_DIR for the location of Eigen3 package")
 	endif()
 else()
-	set (EIGEN3_INCLUDE_DIR "/../external/Eigen")
+	set (EIGEN3_INCLUDE_DIR "include/Eigen")
 endif()
 
 # spdlog library
@@ -26,7 +26,7 @@ if (DEFINED "$ENV{SPDLOG_INCLUDE_DIR}")
 		message (FATAL_ERROR "Incorrect environment variable SPDLOG_INCLUDE_DIR for the location of spdlog package")
 	endif()
 else()
-	set (SPDLOG_INCLUDE_DIR "/../external/spdlog")
+	set (SPDLOG_INCLUDE_DIR "include/spdlog")
 endif()
 
 include_directories("${EIGEN3_INCLUDE_DIR}")
