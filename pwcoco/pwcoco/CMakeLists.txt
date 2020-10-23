@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
+set (CMAKE_INCLUDE_CURRENT_DIR ON)
 set (CMAKE_CXX_STANDARD 11)
+set (CMAKE_C_STANDARD 11)
 
 # set the project name
 project(PWCOCO VERSION 1.0)
@@ -7,11 +9,28 @@ project(PWCOCO VERSION 1.0)
 # add the executable
 add_executable(PWCOCO options.cpp coloc.cpp conditional.cpp data.cpp dcdflib.cpp helper_funcs.cpp)
 
-set (EIGEN3_INCLUDE_DIR "$ENV{EIGEN3_INCLUDE_DIR}")
-if (NOT EIGEN3_INCLUDE_DIR)
-    message(FATAL_ERROR "Specify environment variable EIGEN3_INCLUDE_DIR to the location of Eigen3 package")
+# Eigen library
+if (DEFINED "$ENV{EIGEN3_INCLUDE_DIR}")
+	set (EIGEN3_INCLUDE_DIR "$ENV{EIGEN3_INCLUDE_DIR}")
+	if (NOT EIGEN3_INCLUDE_DIR)
+    		message(FATAL_ERROR "Incorrect environment variable EIGEN3_INCLUDE_DIR for the location of Eigen3 package")
+	endif()
+else()
+	set (EIGEN3_INCLUDE_DIR "/../external/Eigen")
 endif()
+
+# spdlog library
+if (DEFINED "$ENV{SPDLOG_INCLUDE_DIR}")
+	set (SPDLOG_INCLUDE_DIR "$ENV{SPDLOG_INCLUDE_DIR}")
+	if (NOT SPDLOG_INCLUDE_DIR)
+		message (FATAL_ERROR "Incorrect environment variable SPDLOG_INCLUDE_DIR for the location of spdlog package")
+	endif()
+else()
+	set (SPDLOG_INCLUDE_DIR "/../external/spdlog")
+endif()
+
 include_directories("${EIGEN3_INCLUDE_DIR}")
+include_directories("${SPDLOG_INCLUDE_DIR}")
 find_package(OpenMP)
 if (OPENMP_FOUND)
     set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
