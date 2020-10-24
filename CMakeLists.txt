@@ -4,7 +4,7 @@ set (CMAKE_CXX_STANDARD 11)
 set (CMAKE_C_STANDARD 11)
 
 # set the project name
-project(PWCOCO VERSION 1.0)
+project(pwcoco VERSION 1.0 LANGUAGES CXX)
 
 # Eigen library
 if (DEFINED "$ENV{EIGEN3_INCLUDE_DIR}")
@@ -30,11 +30,5 @@ else ()
 endif()
 
 find_package(OpenMP)
-if (OPENMP_FOUND)
-    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-    set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
-endif()
-
-# add the executable
-add_executable(PWCOCO src/options.cpp src/coloc.cpp src/conditional.cpp src/data.cpp src/dcdflib.cpp src/helper_funcs.cpp)
+add_executable(pwcoco src/options.cpp src/coloc.cpp src/conditional.cpp src/data.cpp src/dcdflib.cpp src/helper_funcs.cpp)
+target_link_libraries(pwcoco PRIVATE OpenMP::OpenMP_CXX)
