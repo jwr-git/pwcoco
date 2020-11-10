@@ -31,4 +31,7 @@ endif()
 
 find_package(OpenMP)
 add_executable(pwcoco src/options.cpp src/coloc.cpp src/conditional.cpp src/data.cpp src/dcdflib.cpp src/helper_funcs.cpp)
-target_link_libraries(pwcoco PRIVATE OpenMP::OpenMP_CXX)
+if (OpenMP_CXX_FOUND)
+	message (STATUS "Linking OpenMP")
+	target_link_libraries(pwcoco PUBLIC OpenMP::OpenMP_CXX)
+endif()

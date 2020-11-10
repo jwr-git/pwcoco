@@ -4,6 +4,7 @@ A C++ implementation of the PWCoCo algorithm described by Zheng, et al in their 
 This tool integrates methods from [GCTA-COJO](https://cnsgenomics.com/software/gcta/#Overview) and the [coloc](https://chr1swallace.github.io/coloc/index.html) R package.
 
 ## Requirements
+- Cmake >= 3.10
 - Eigen >= 3.3.7
 - spdlog >= 1.8.1
 
