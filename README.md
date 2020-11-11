@@ -13,7 +13,7 @@ These libraries are bundled in `/include/` at the required versions for ease of 
 ## How to Build
 Currently, only Unix and Windows are supported.
 
-- Unix
+### Unix
 To build on Unix systems, follow the code below:
 ```
 git clone https://github.com/jwr-git/pwcoco
@@ -24,11 +24,11 @@ cmake ..
 make
 ```
 
-If building on the University of Bristol's HPC, ensure `languages/gcc-9.1.0` is loaded and ensure this is the **only** gcc module loaded. This should be all you need to build the program.
+If building on the University of Bristol's HPC, load the module `languages/gcc-9.1.0` and ensure this is the **only** gcc module loaded. This should be all you need to build the program.
 
-- Windows
+### Windows
 
-A .sln file is provided for Visual Studio 2019.
+A .sln file is provided for Visual Studio 2019. Be aware that there may be issues using the Eigen library, as packaged, on Windows machines.
 
 ## How to Use
 PWCoCo is a command-line program. Here is a list of accepted flags with a description of each one:
@@ -58,7 +58,30 @@ Example files will be provided soon so that a full analysis can be run. Instead,
 
 `pwcoco --bfile "../../1kg_plink/chr5" --phen1_file "tgfbi/TGFBI_exposure.txt" --phen2_file "tgfbi/TGFBI_outcome.txt" --out "tgfbi/res" --chr 5 --maf 0.01 --out_cond 1`
 
+### Input File Formats
+The bfile, or reference files, must be in Plink format. This means a .bed, .bim and .fam file in the same directory with the same name.
+
+Phenotype files do not require a certain file format. Instead, they _must_ follow this structure:
+
+`SNP	effect_allele	other_allele	effect_allele_freq	beta	se	p	n`
+
+Column names do not matter, only the order of the data.
+
+### Output File Formats
+The program by default will output a file with the ending `.coloc` which contains the results for each of the colocalisation analyses run:
+
+`SNP1	SNP2	H0	H1	H2	H3	H4	log_abf_all`
+
+If the data has been unconditioned, then the SNP column will contain "unconditioned" instead of a SNP name. Please note that output files **are not** deleted or overwritten between runs. That means if you run the program twice with the same output file name, results will be appended to the output file. SNPs correspond to the same numbered phenotype file, e.g. SNP1 comes from phen1_file.
+
+The program will also output two extra files (ending in `.included`) listing the SNPs included in the analysis from each dataset. Finally, if the `out_cond` flag is set to true, the program will output the conditioned results after the conditional analysis in files ending with `.cojo`:
+
+`Chr	SNP	bp	refA	freq	b	se	p	n	freq_geno	bC	bC_se	pC`
+
+The columns `freq`, `b`, `se` and `p` should be unaltered from the original dataset. The final columns will be post-conditional analysis. 
+
 ## To Do
+- Allow more functions to work asynchronously.
 - Rewrite the .bed reading function for efficiency.
 - Provide example files.
 - Clean up input flags.
