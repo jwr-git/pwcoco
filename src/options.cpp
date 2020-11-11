@@ -187,7 +187,7 @@ void option(int option_num, char* option_str[])
 	}
 
 	// Check values are within bounds
-	if (top_snp < 1 || top_snp > 10000) {
+	if ((top_snp != -1 && top_snp < 1) || top_snp > 10000) {
 		top_snp = (top_snp <= 1 ? 1 : top_snp >= 10000 ? 10000 : top_snp);
 	}
 
