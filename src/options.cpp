@@ -46,9 +46,9 @@ int main(int argc, char* argv[])
 void option(int option_num, char* option_str[])
 {
 	unsigned short chr = 0;
-	int i = 0, top_snp = -1;
-	double p_cutoff = 5e-8, collinear = 0.9, maf = 0.0, ld_window = 1.0e7,
-		freq_threshold = 0.2, init_h4 = 80;
+	int i = 0;
+	double p_cutoff = 5e-8, collinear = 0.9, maf = 0.1, ld_window = 1.0e7,
+		freq_threshold = 0.2, init_h4 = 80, top_snp = 1e10;
 	string bfile = "", bim_file = "", fam_file = "", bed_file = "",
 		phen1_file = "", phen2_file = "",
 		out = "pwcoco_out", log = "pwcoco_log", snplist = "",
@@ -92,24 +92,53 @@ void option(int option_num, char* option_str[])
 		}
 		else if (opt == "--chr") {
 			chr = (unsigned short)stoi(option_str[++i]);
+
+			if (chr < 1 || chr > 23) {
+				chr = (chr < 1 ? 1 : chr > 23 ? 23 : chr);
+			}
 		}
 		else if (opt == "--top_snp") {
-			top_snp = stoi(option_str[++i]);
+			top_snp = stod(option_str[++i]);
+
+			if (top_snp < 1 || top_snp > 10000) {
+				top_snp = (top_snp <= 1 ? 1 : top_snp >= 10000 ? 10000 : top_snp);
+			}
 		}
 		else if (opt == "--ld_window") {
 			ld_window = stoi(option_str[++i]);
+
+			if (ld_window > 10000) {
+				ld_window = 10000;
+			}
+			ld_window *= 1000;
 		}
 		else if (opt == "--collinear") {
 			collinear = stod(option_str[++i]);
+
+			if (collinear < 0.01 || collinear > 0.99) {
+				collinear = (collinear <= 0.01 ? 0.01 : collinear >= 0.99 ? 0.99 : collinear);
+			}
 		}
 		else if (opt == "--maf") {
 			maf = stod(option_str[++i]);
+
+			if (maf < 0.0 || maf > 0.5) {
+				maf = (maf < 0.0 ? 0.0 : maf > 0.5 ? 0.5 : maf);
+			}
 		}
 		else if (opt == "--freq_threshold") {
 			freq_threshold = stod(option_str[++i]);
+
+			if (freq_threshold < 0.0 || freq_threshold > 1.0) {
+				freq_threshold = (freq_threshold < 0.0 ? 0.0 : freq_threshold > 1.0 ? 1.0 : freq_threshold);
+			}
 		}
 		else if (opt == "--init_h4") {
 			init_h4 = stod(option_str[++i]);
+
+			if (init_h4 < 0.0 || init_h4 > 100.0) {
+				init_h4 = (init_h4 < 0.0 ? 0.0 : init_h4 > 100.0 ? 100.0 : init_h4);
+			}
 		}
 		else if (opt == "--out_cond") {
 			out_cond = stoi(option_str[++i]) ? true : false;
@@ -179,44 +208,10 @@ void option(int option_num, char* option_str[])
 		return;
 	}
 
-	if (chr < 1 || chr > 23) {
-		spdlog::warn("Chromosome is out of bounds: {}", chr);
-	}
-	else {
+	if (chr) {
 		spdlog::info("Limiting analysis to chromosome {}.", chr);
 	}
-
-	// Check values are within bounds
-	if ((top_snp != -1 && top_snp < 1) || top_snp > 10000) {
-		top_snp = (top_snp <= 1 ? 1 : top_snp >= 10000 ? 10000 : top_snp);
-	}
-
-	if (ld_window > 100000) {
-		spdlog::info("LD window was set too high, capping at 100,000.");
-		ld_window = 10000;
-	}
-	ld_window *= 1000;
-
-	if (collinear < 0.01 || collinear > 0.99) {
-		spdlog::info("Collinearity check should be in the range (0.01, 0.99), capping value given within this range.");
-		collinear = (collinear <= 0.01 ? 0.01 : collinear >= 0.99 ? 0.99 : collinear);
-	}
-
-	if (maf < 0.0 || maf > 0.5) {
-		spdlog::info("MAF flag should be within the range of (0.0, 0.5). Clipping to be within this range.");
-		maf = (maf < 0.0 ? 0.0 : maf > 0.5 ? 0.5 : maf);
-	}
-
-	if (freq_threshold < 0.0 || freq_threshold > 1.0) {
-		spdlog::info("Allele frequency threshold is not within the range of (0.0, 1.0). Clipping to be within this range.");
-		freq_threshold = (freq_threshold < 0.0 ? 0.0 : freq_threshold > 1.0 ? 1.0 : freq_threshold);
-	}
-
-	if (init_h4 < 0.0 || init_h4 > 100.0) {
-		spdlog::info("Initial colocalisation H4 not within range of (0.0, 100.0). Clipping to be within this range.");
-		spdlog::info("If you would like to continue with PWCoCo regardless of the initial result, please set value to 0.0");
-		init_h4 = (init_h4 < 0.0 ? 0.0 : init_h4 > 100.0 ? 100.0 : init_h4);
-	}
+	// coloc returns h4 as a decimal
 	init_h4 /= 100;
 
 	// First pass through - match data and perform coloc

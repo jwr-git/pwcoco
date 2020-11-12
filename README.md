@@ -48,7 +48,7 @@ For acceptable formats for these files, please see below.
 - `--top_snp` - maximum number of SNPs that may be selected by the stepwise selection process, default is 1e10, i.e. a lot.
 - `--ld_window` - distance (in kb) that, when exceeded, is assumed for SNPs to be in total LE, default is 1e7.
 - `--collinear` - threshold that, when exceeded, determines if SNPs are collinear, default is 0.9.
-- `--maf` - filters SNPs from the reference dataset according to this threshold, default is 0 (includes all).
+- `--maf` - filters SNPs from the reference dataset according to this threshold, default is 0.1.
 - `--freq_threshold` - SNPs in the phenotype datasets which differ by more than this amount in the reference dataset will be excluded, default is 0.2.
 - `--init_h4` - PWCoCo will run an initial colocalisation on the unconditioned dataset. If the H4 for this analysis reaches this threshold, the program will terminate early. Default is 80 (i.e. 80%). Set to 0 if you would like the program to always continue regardless of the initial colocalisation result.
 - `--out_cond` - true/false: would you like for the conditioned data to be saved as text files as well?

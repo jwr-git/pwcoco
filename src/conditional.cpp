@@ -12,7 +12,7 @@ cond_analysis::cond_analysis(double p_cutoff, double collinear, double ld_window
 	a_ld_window = ld_window;
 	a_freq_threshold = freq_thres;
 
-	a_top_snp = (top_snp < 0 ? 1e10 : top_snp);
+	a_top_snp = top_snp;
 
 	num_snps = 0;
 }
@@ -29,7 +29,7 @@ cond_analysis::cond_analysis()
 	a_ld_window = 1e7;
 	a_freq_threshold = 0.2;
 
-	a_top_snp = -1;
+	a_top_snp = 1e10;
 
 	num_snps = 0;
 }
