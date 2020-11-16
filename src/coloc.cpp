@@ -37,6 +37,10 @@ coloc_analysis::coloc_analysis()
 	log_abf_all = log_ABF_sum = 0.0;
 }
 
+/*
+ * Estimates the Bayes factor for the SNP information provided.
+ * @ret void
+ */
 void coloc_analysis::estimate_bf(const vector<double> beta, const vector<double> se, const vector<double> freq, 
 	const vector<double> n, vector<double> *ABF)
 {
@@ -106,6 +110,10 @@ void coloc_analysis::combine_abf(size_t abf_size)
 	transform(pp_abf.begin(), pp_abf.end(), pp_abf.begin(), [=](double x) { return exp(x - log_abf_all); });
 }
 
+/*
+ * First pass of colocalisation analysis using the unconditioned data.
+ * @ret void
+ */
 void coloc_analysis::init_coloc()
 {
 	perform_coloc();
@@ -114,6 +122,10 @@ void coloc_analysis::init_coloc()
 	results_to_file("unconditioned", "unconditioned");
 }
 
+/*
+ * Initialises the colocalisation analysis using the conditioned data.
+ * @ret void
+ */
 void coloc_analysis::init_coloc(string snp1, string snp2)
 {
 	perform_coloc();
@@ -122,6 +134,10 @@ void coloc_analysis::init_coloc(string snp1, string snp2)
 	results_to_file(snp1, snp2);
 }
 
+/*
+ * Performs the colocalisation analysis and calls relevant helper calculation functions.
+ * @ret void
+ */
 void coloc_analysis::perform_coloc()
 {
 	vector<double> temp, temp2;
@@ -151,6 +167,10 @@ void coloc_analysis::perform_coloc()
 	combine_abf(ABF_sum.size());
 }
 
+/*
+ * Saves colocalisation results to file.
+ * @ret void
+ */
 void coloc_analysis::results_to_file(string s1, string s2)
 {
 	ifstream ifile(outfile + ".coloc");

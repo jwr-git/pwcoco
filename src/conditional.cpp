@@ -791,14 +791,7 @@ void cond_analysis::pw_conditional(int pos, bool out_cond, reference *ref)
 	Z = Z_master;
 	Z_N = Z_N_master;
 
-	// Exclude SNPs from conditional
-	/*
-	if (pos >= 0) {
-		remain.push_back(selected[pos]);
-		erase_B_and_Z(selected, selected[pos]);
-		selected.erase(selected.begin() + pos);
-	}
-	*/
+	// Move SNPs into the remain category
 	if (pos >= 0) {
 		size_t i = 0;
 		while (selected.size() > 1) {
@@ -829,15 +822,15 @@ void cond_analysis::pw_conditional(int pos, bool out_cond, reference *ref)
 	p_cond.clear();
 	n_cond.clear();
 
-	//for (size_t i = 0; i < selected.size(); i++) {
-	//	size_t j = selected[i];
-	//	snps_cond.push_back(ref->bim_snp_name[to_include[j]]);
-	//	b_cond.push_back(ja_beta[j]);
-	//	se_cond.push_back(ja_beta_se[j]);
-	//	maf_cond.push_back(0.5 * mu[to_include[j]]);
-	//	p_cond.push_back(ja_pval[j]);
-	//	n_cond.push_back(nD[j]);
-	//}
+	for (size_t i = 0; i < selected.size(); i++) {
+		size_t j = selected[i];
+		snps_cond.push_back(ref->bim_snp_name[to_include[j]]);
+		b_cond.push_back(ja_beta[j]);
+		se_cond.push_back(ja_beta_se[j]);
+		maf_cond.push_back(0.5 * mu[to_include[j]]);
+		p_cond.push_back(ja_pval[j]);
+		n_cond.push_back(nD[j]);
+	}
 
 	for (size_t i = 0; i < remain.size(); i++) {
 		size_t j = remain[i];

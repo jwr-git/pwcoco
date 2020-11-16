@@ -1,7 +1,7 @@
 #include "data.h"
 
 /*
- * Sub-class phenotype constructor
+ * Phenotype constructor
  */
 phenotype::phenotype(string name)
 {
@@ -11,7 +11,7 @@ phenotype::phenotype(string name)
 }
 
 /*
- * Sub-class phenotype default constructor
+ * Phenotype default constructor
  */
 phenotype::phenotype()
 {
@@ -185,7 +185,7 @@ double phenotype::calc_variance(vector<size_t> idx)
 }
 
 /*
- * Sub-class reference data constructor
+ * Reference data constructor
  */
 reference::reference(string out, unsigned short chr)
 {
@@ -194,7 +194,7 @@ reference::reference(string out, unsigned short chr)
 }
 
 /*
- * Sub-class phenotype default constructor
+ * Reference data default constructor
  */
 reference::reference()
 {
@@ -215,7 +215,7 @@ void reference::reference_clear()
  * store all data from that .bim file for use in
  * the conditional analysis.
  * @param string bimfile File name and path to .bim file
- * @ret void
+ * @ret int 0 if failed, 1 if successful
  */
 int reference::read_bimfile(string bimfile)
 {
@@ -271,7 +271,7 @@ int reference::read_bimfile(string bimfile)
 	}
 	bim.close();
 	
-	/*
+	/* Super slow
 	// Iterate through bim file and save data
 	while (getline(bim, line)) {
 		istringstream ss(line);
@@ -375,6 +375,9 @@ int reference::read_bimfile(string bimfile)
 /*
  * Matches .bim data to the matched data from the initial coloc analysis
  * Doing this early cuts down on the memory and processing footprint of the program.
+ * @param vector<string> names SNP names from first dataset
+ * @param vector<string> names2 SNP names from second dataset
+ * @ret void
  */
 void reference::match_bim(vector<string> &names, vector<string> &names2)
 {
@@ -440,6 +443,7 @@ void reference::bim_clear() {
  * Helper function called from read_bimfile which will sanitise
  * the SNP list from the .bim file. This includes renaming any
  * duplicated SNPs.
+ * @ret void
  */
 void reference::sanitise_list()
 {
@@ -474,7 +478,7 @@ void reference::sanitise_list()
  * store all data from that .fam file for use in
  * the conditional analysis.
  * @param string famfile File name and path to .fam file
- * @ret void
+ * @ret int 0 if failed, 1 if successful
  */
 int reference::read_famfile(string famfile)
 {
@@ -585,6 +589,12 @@ void reference::fam_clear() {
 	fam_pheno.clear();
 }
 
+/*
+ * Filters user datasets by MAF according to a user-defined
+ * threshold. 
+ * @param double maf Minor allele frequency threshold
+ * @ret int 1 if successful, 0 if failed
+ */
 int reference::filter_snp_maf(double maf)
 {
 	map<string, size_t> id_map(snp_map);
@@ -622,6 +632,7 @@ int reference::filter_snp_maf(double maf)
 
 /*
  * Calculates allele frequencies based on .fam data
+ * @ret void
  */
 void reference::calculate_allele_freq()
 {
@@ -653,6 +664,11 @@ void reference::calculate_allele_freq()
 	}
 }
 
+/*
+ * Creates read_individuals vector from .fam data.
+ * @param vector<int> &read_individuals Vector reference to input data
+ * @ret void
+ */
 void reference::get_read_individuals(vector<int> &read_individuals)
 {
 	read_individuals.clear();
@@ -670,7 +686,7 @@ void reference::get_read_individuals(vector<int> &read_individuals)
  * from the .bed file and use it to calculate allele
  * frequencies for the reference data.
  * @param string bedfile File name and path to .bed file
- * @ret void
+ * @ret int 0 if failed, 1 if successful
  */
 int reference::read_bedfile(string bedfile)
 {
@@ -765,6 +781,9 @@ int reference::read_bedfile(string bedfile)
 
 /*
  * Updates the inclusion list of SNPs based on an index-based vector.
+ * @param const vector<size_t> idx Index of SNPs
+ * @param const vector<string> snps SNP names
+ * @ret void
  */
 void reference::update_inclusion(const vector<size_t> idx, const vector<string> snps)
 {
@@ -842,6 +861,9 @@ mdata::mdata(phenotype *ph1, phenotype *ph2)
 	}
 }
 
+/*
+ * Matched data default constructor
+ */
 mdata::mdata()
 {
 	snps1.clear();
