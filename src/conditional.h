@@ -139,17 +139,17 @@ private:
 	vector<double> mu; // Calculated allele frequencies using fam data
 
 	eigenSparseMat B;
-	eigenMatrix B_i; // Identity matrix of B
+	eigenSparseMat B_i; // Identity matrix of B
 	eigenSparseMat B_N;
-	eigenMatrix B_N_i; // Identity matrix of B_N
+	eigenSparseMat B_N_i; // Identity matrix of B_N
 	eigenVector D_N;
 	eigenSparseMat Z;
 	eigenSparseMat Z_N;
 
 	eigenSparseMat B_master;
-	eigenMatrix B_i_master; // Identity matrix of B
+	eigenSparseMat B_i_master; // Identity matrix of B
 	eigenSparseMat B_N_master;
-	eigenMatrix B_N_i_master; // Identity matrix of B_N
+	eigenSparseMat B_N_i_master; // Identity matrix of B_N
 	eigenVector D_N_master;
 	eigenSparseMat Z_master;
 	eigenSparseMat Z_N_master;

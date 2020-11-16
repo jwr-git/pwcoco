@@ -742,6 +742,7 @@ void cond_analysis::find_independent_snps(reference *ref)
 {
 	vector<size_t> selected, remain;
 	eigenVector bC, bC_se, pC;
+	jma_snpnum_backward = 0;
 
 	if (a_top_snp <= 0.0)
 		a_top_snp = 1e10;
