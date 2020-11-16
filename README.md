@@ -14,10 +14,8 @@ These libraries are bundled in `/include/` at the required versions for ease of 
 Currently, only Unix and Windows are supported.
 
 ### Unix
-To build on Unix systems, follow the code below:
+To build on Unix systems, clone this repository and follow the code below:
 ```
-git clone https://github.com/jwr-git/pwcoco
-
 mkdir build
 cd build
 cmake ..
