@@ -61,9 +61,9 @@ The bfile, or reference files, must be in Plink format. This means a .bed, .bim 
 
 Phenotype files do not require a certain file format. Instead, they _must_ follow this structure:
 
-`SNP	effect_allele	other_allele	effect_allele_freq	beta	se	p	n`
+`SNP	effect_allele	other_allele	effect_allele_freq	beta	se	p	n	{case}`
 
-Column names do not matter, only the order of the data.
+Column names do not matter, only the order of the data. The `case` column is optional and should be given for phenotypes which are measured in case/control studies - where `n` will be the total sample size and `case` only case numbers. Including this column will cause the colocalisation to treat this as `cc` typed data (and not `quant` which only has `n`, total sample size, available).
 
 ### Output File Formats
 The program by default will output a file with the ending `.coloc` which contains the results for each of the colocalisation analyses run:

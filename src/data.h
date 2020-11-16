@@ -17,6 +17,12 @@
 
 using namespace std;
 
+enum class coloc_type : int {
+	COLOC_NONE = 0,
+	COLOC_QUANT,
+	COLOC_CC,
+};
+
 class cond_analysis;
 
 class phenotype {
@@ -44,6 +50,10 @@ public:
 		return failed;
 	}
 
+	enum coloc_type get_coloc_type() {
+		return ctype;
+	}
+
 	// From phenotype file
 	vector<string> snp_name;
 	vector<string> allele1;
@@ -64,6 +74,7 @@ private:
 	double pheno_variance; /// Estimated phenotypic variance from summary stats
 
 	bool failed; // Phenotype reading failed in some way
+	coloc_type ctype; // Type of coloc to use: cc or quant
 };
 
 phenotype *init_pheno(string filename, string pheno_name);
@@ -87,6 +98,8 @@ public:
 	vector<double> pvals1, pvals2;
 	vector<double> mafs1, mafs2;
 	vector<double> ns1, ns2; // Must these be double? Can they be int?
+	vector<double> s1, s2; // Case to total sample size proportion
+	coloc_type type1, type2;
 
 private:
 	map<size_t, size_t> snp_map; // Positions of SNPs in original datasets

@@ -42,7 +42,7 @@ coloc_analysis::coloc_analysis()
  * @ret void
  */
 void coloc_analysis::estimate_bf(const vector<double> beta, const vector<double> se, const vector<double> freq, 
-	const vector<double> n, vector<double> *ABF)
+	const vector<double> n, coloc_type type, vector<double> *ABF)
 {
 	vector<double> varbeta, invbeta,
 		nvx = freq, 
@@ -52,27 +52,33 @@ void coloc_analysis::estimate_bf(const vector<double> beta, const vector<double>
 		r, log_temp;
 	double sdY, sd_prior;
 
-	// Square standard errors and ensure frequencies are MINOR allele frequencies
 	transform(sesq.begin(), sesq.end(), sesq.begin(), [](double x) { return x * x; });
-	transform(nvx.begin(), nvx.end(), nvx.begin(), [](double x) { return x > 0.5 ? 1.0 - x : x; });
-
-	// Inverse beta calculation
 	varbeta = sesq;
-	invbeta = varbeta;
-	transform(invbeta.begin(), invbeta.end(), invbeta.begin(), [](double x) { return 1 / x; });
-	// Estimate sdY from 
-	transform(nvx.begin(), nvx.end(), ssize.begin(), nvx.begin(), [](double x, double n_) { return 2 * n_ * x * (1 - x); });
 
-	// Regress b*var(x) against 1/var(beta)
-	sdY = lm_fixed(invbeta, nvx); // same as: lm(nvx ~ invbeta - 1)
-	sdY = sqrt(sdY);
+	if (type == coloc_type::COLOC_QUANT) {
+		// Square standard errors and ensure frequencies are MINOR allele frequencies
+		transform(nvx.begin(), nvx.end(), nvx.begin(), [](double x) { return x > 0.5 ? 1.0 - x : x; });
+
+		// Inverse beta calculation
+		invbeta = varbeta;
+		transform(invbeta.begin(), invbeta.end(), invbeta.begin(), [](double x) { return 1 / x; });
+		// Estimate sdY from 
+		transform(nvx.begin(), nvx.end(), ssize.begin(), nvx.begin(), [](double x, double n_) { return 2 * n_ * x * (1 - x); });
+
+		// Regress b*var(x) against 1/var(beta)
+		sdY = lm_fixed(invbeta, nvx); // same as: lm(nvx ~ invbeta - 1)
+		sdY = sqrt(sdY);
+	}
+
+	if (type == coloc_type::COLOC_QUANT) {
+		sd_prior = 0.15 * sdY;
+	}
+	else {
+		sd_prior = 0.2;
+	}
 
 	// Calculate z and estimate Bayes factors
 	transform(z.begin(), z.end(), se.begin(), z.begin(), [](double b, double se_) { return b / se_; });
-
-	// if type == COLOC_QUANT
-	sd_prior = 0.15 * sdY;
-	// else sd_prior = 0.2
 	
 	r = varbeta;
 	transform(r.begin(), r.end(), r.begin(), [sd_prior](double v) { return (sd_prior * sd_prior) / (sd_prior * sd_prior + v); });
@@ -143,11 +149,11 @@ void coloc_analysis::perform_coloc()
 	vector<double> temp, temp2;
 	// Estimate sdY and then Bayes factor for the two datasets
 	// First the conditional analysis dataset
-	estimate_bf(matched->betas1, matched->ses1, matched->mafs1, matched->ns1, &temp);
+	estimate_bf(matched->betas1, matched->ses1, matched->mafs1, matched->ns1, matched->type1, &temp);
 	ABF_1 = &temp;
 
 	// Now the outcome phenotype dataset
-	estimate_bf(matched->betas2, matched->ses2, matched->mafs2, matched->ns2, &temp2);
+	estimate_bf(matched->betas2, matched->ses2, matched->mafs2, matched->ns2, matched->type2, &temp2);
 	ABF_2 = &temp2;
 
 	// "Merge" ABFs for SNPs in both datasets and sum

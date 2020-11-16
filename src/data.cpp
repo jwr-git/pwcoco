@@ -8,6 +8,7 @@ phenotype::phenotype(string name)
 	pheno_name = name;
 	pheno_variance = 0;
 	failed = false;
+	ctype = coloc_type::COLOC_NONE;
 }
 
 /*
@@ -18,12 +19,15 @@ phenotype::phenotype()
 	pheno_name = "";
 	pheno_variance = 0;
 	failed = false;
+	ctype = coloc_type::COLOC_NONE;
 }
 
 void phenotype::phenotype_clear()
 {
 	pheno_name = "";
 	pheno_variance = 0;
+	failed = false;
+	ctype = coloc_type::COLOC_NONE;
 
 	vector<string>().swap(snp_name);
 	vector<string>().swap(allele1);
@@ -33,6 +37,7 @@ void phenotype::phenotype_clear()
 	vector<double>().swap(se);
 	vector<double>().swap(pval);
 	vector<double>().swap(n);
+	vector<double>().swap(n_case);
 	vector<double>().swap(Vp_v);
 }
 
@@ -78,7 +83,7 @@ void phenotype::read_phenofile(string filename)
 
 	// Buffers
 	string snp_name_buf, allele1_buf, allele2_buf;
-	double freq_buf = -1.0, beta_buf, se_buf = 0.0, pval_buf, n_buf, nc_buf;
+	double freq_buf = -1.0, beta_buf, se_buf = 0.0, pval_buf, n_buf, nc_buf = 0.0, s;
 
 	ifstream pfile(filename.c_str());
 	if (!pfile) {
@@ -89,7 +94,7 @@ void phenotype::read_phenofile(string filename)
 	spdlog::info("Reading data from phenotype file: {}.", filename);
 	//phenotype_clear(pheno);
 
-	// Iterate through bim file and save data
+	// Iterate through file and save data
 	while (getline(pfile, line)) {
 		istringstream ss(line);
 		string substr;
@@ -131,8 +136,12 @@ void phenotype::read_phenofile(string filename)
 			case 6: // Seventh column contains P value
 				checkEntry(substr, &pval_buf);
 				break;
-			case 7: // Eighth column contains N
+			case 7: // Eighth column contains N total
 				checkEntry(substr, &n_buf);
+				break;
+			case 8: // Nineth column contains N of cases (optional)
+				checkEntry(substr, &nc_buf);
+				ctype = coloc_type::COLOC_CC;
 				break;
 			}
 			tab++;
@@ -150,7 +159,12 @@ void phenotype::read_phenofile(string filename)
 		se.push_back(se_buf);
 		pval.push_back(pval_buf);
 		n.push_back(n_buf);
-		n_case.push_back(nc_buf);
+		s = n_buf != 0 ? nc_buf / n_buf : nc_buf;
+		if (s < 0 || s >= 1) {
+			spdlog::warn("SNP {} in phenotyle file {} has case proportion outside of range [0, 1) - capping.", snp_name_buf, s);
+			s = s < 0 ? 0 : s >= 1 ? s = 1 - 1e-8 : s;
+		}
+		n_case.push_back(s); // n_case will contain proportion of cases to total sample size
 
 		// Calculate variance of phenotype
 		h = 2.0 * freq[count] * (1.0 - freq[count]);
@@ -163,6 +177,11 @@ void phenotype::read_phenofile(string filename)
 
 		count++;
 	}
+
+	if (ctype == coloc_type::COLOC_NONE) {
+		ctype = coloc_type::COLOC_QUANT; // n contains sample size
+	}
+
 	pfile.close();
 	pheno_variance = v_calc_median(Vp_v);
 
@@ -849,6 +868,7 @@ mdata::mdata(phenotype *ph1, phenotype *ph2)
 		pvals1.push_back(ph1->pval[itmap->first]);
 		mafs1.push_back(ph1->freq[itmap->first]);
 		ns1.push_back(ph1->n[itmap->first]);
+		s1.push_back(ph1->n_case[itmap->first]);
 
 		snps2.push_back(ph2->snp_name[itmap->second]);
 		betas2.push_back(ph2->beta[itmap->second]);
@@ -856,9 +876,12 @@ mdata::mdata(phenotype *ph1, phenotype *ph2)
 		pvals2.push_back(ph2->pval[itmap->second]);
 		mafs2.push_back(ph2->freq[itmap->second]);
 		ns2.push_back(ph2->n[itmap->second]);
+		s2.push_back(ph2->n_case[itmap->second]);
 
 		itmap++;
 	}
+	type1 = ph1->get_coloc_type();
+	type2 = ph2->get_coloc_type();
 }
 
 /*

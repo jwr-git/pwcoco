@@ -6,11 +6,6 @@
 
 using namespace std;
 
-enum coloc_type {
-	COLOC_QUANT = 1,
-	COLOC_CC,
-};
-
 enum hypothesis {
 	H0 = 0,
 	H1,
@@ -31,7 +26,7 @@ public:
 	
 private:
 	void perform_coloc();
-	void estimate_bf(const vector<double> beta, const vector<double> se, const vector<double> freq, const vector<double> n, vector<double> *ABF);
+	void estimate_bf(const vector<double> beta, const vector<double> se, const vector<double> freq, const vector<double> n, coloc_type type, vector<double> *ABF);
 	void combine_abf(size_t abf_size);
 	void results_to_file(string s1, string s2);
 
