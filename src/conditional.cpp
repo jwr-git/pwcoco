@@ -812,7 +812,7 @@ void cond_analysis::pw_conditional(int pos, bool out_cond, reference *ref)
 
 	massoc_conditional(selected, remain, bC, bC_se, pC, ref);
 	if (out_cond) {
-		sanitise_output(remain, "remain." + ref->bim_snp_name[ind_snps[pos]], bC, bC_se, pC, ref);
+		sanitise_output(selected, remain, "remain." + ref->bim_snp_name[ind_snps[pos]], bC, bC_se, pC, ref);
 	}
 
 	// Save in friendly format for mdata class
@@ -845,6 +845,10 @@ void cond_analysis::pw_conditional(int pos, bool out_cond, reference *ref)
 	cond_passed = bC.size() > 0;
 }
 
+/*
+ * Constructs LD matrix for a single vector of SNPs.
+ * Will be NxN size, where N is number of SNPs in the vector.
+ */
 void cond_analysis::LD_rval(const vector<size_t> &idx, eigenMatrix &rval)
 {
 	size_t i = 0, j = 0,
@@ -862,11 +866,38 @@ void cond_analysis::LD_rval(const vector<size_t> &idx, eigenMatrix &rval)
 	}
 }
 
-void cond_analysis::sanitise_output(vector<size_t> &selected, string name, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, reference *ref)
+/*
+ * Constructs LD matrix for two vectors of SNPs.
+ * Will be NxM size, where N and M are the number of SNPs in either vector.
+ */
+void cond_analysis::LD_rval(const vector<size_t> &v1, const vector<size_t> &v2, eigenMatrix &rval)
+{
+	size_t i = 0, j = 0,
+		v1_size = v1.size(),
+		v2_size = v2.size();
+	eigenVector sd_v1(v1_size), sd_v2(v2_size);
+
+	for (i = 0; i < v1_size; i++)
+		sd_v1[i] = sqrt(msx_b[v1[i]]);
+
+	for (i = 0; i < v2_size; i++)
+		sd_v2[i] = sqrt(msx_b[v2[i]]);
+
+	for (i = 0; i < v1_size; i++) {
+		for (j = 0; j < v2_size; j++) {
+			rval(i, j) = B.coeff(i, j) / sd_v1[i] / sd_v2[j];
+		}
+	}
+}
+
+void cond_analysis::sanitise_output(vector<size_t> &selected, vector<size_t> &remain, string name, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, reference *ref)
 {
 	string filename = cname + "." + name + ".cojo";
 	ofstream ofile(filename.c_str());
-	size_t i = 0, j = 0;
+	size_t i = 0, j = 0, k;
+	eigenMatrix ld(remain.size(), selected.size());
+
+	LD_rval(remain, selected, ld);
 	
 	if (!ofile) {
 		spdlog::warn("Cannot open file {} for writing.", filename);
@@ -875,16 +906,23 @@ void cond_analysis::sanitise_output(vector<size_t> &selected, string name, eigen
 
 	// Header
 	ofile << "Chr\tSNP\tbp\trefA\tfreq\tb\tse\tp\tn\tfreq_geno\tbC\tbC_se\tpC";
+	for (i = 0; i < selected.size(); i++) {
+		ofile << "\t" << ref->bim_snp_name[to_include[selected[i]]];
+	}
 	ofile << endl;
 
-	for (i = 0; i < selected.size(); i++) {
-		j = selected[i];
+	for (i = 0; i < remain.size(); i++) {
+		j = remain[i];
 		ofile << ref->bim_chr[to_include[j]] << "\t" << ref->bim_snp_name[to_include[j]] << "\t" << ref->bim_bp[to_include[j]] << "\t";
 		ofile << ref->ref_A[to_include[j]] << "\t" << ja_freq[j] << "\t" << ja_beta[j] << "\t" << ja_beta_se[j] << "\t";
 		ofile << ja_pval[j] << "\t" << nD[j] << "\t" << 0.5 * mu[to_include[j]] << "\t";
-
 		ofile << bJ[i] << "\t" << bJ_se[i] << "\t" << pJ[i] << "\t";
-		ofile << 0 << endl;
+
+		// LD structure
+		for (k = 0; k < selected.size(); k++) {
+			ofile << ld(j, k) << "\t";
+		}
+		ofile << endl;
 	}
 	ofile.close();
 }
