@@ -155,8 +155,7 @@ void eigenVector2Vector(Eigen::VectorXd &x, std::vector<double> &y)
 }
 
 /*
- * Implementation of logsum from mvc library in R
- * TODO This differs slightly from the R result - need to check this out
+ * Caculates log of the sum of exponentiated logs excluding the max
  */
 double logsum(const std::vector<double> &x)
 {

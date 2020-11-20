@@ -39,34 +39,37 @@ coloc_analysis::coloc_analysis()
 
 /*
  * Estimates the Bayes factor for the SNP information provided.
- * @ret void
+ * @ret bool True if fine, false is stop
  */
-void coloc_analysis::estimate_bf(const vector<double> beta, const vector<double> se, const vector<double> freq, 
+bool coloc_analysis::estimate_bf(const vector<double> beta, const vector<double> se, const vector<double> freq, 
 	const vector<double> n, coloc_type type, vector<double> *ABF)
 {
-	vector<double> varbeta, invbeta,
+	vector<double> varbeta, // se^2
+		invbeta, // 1/varbeta
 		nvx = freq, 
 		z = beta, 
-		sesq = se, 
+		varbeta = se,
 		ssize = n,
 		r, log_temp;
 	double sdY, sd_prior;
 
-	transform(sesq.begin(), sesq.end(), sesq.begin(), [](double x) { return x * x; });
-	varbeta = sesq;
+	// Square standard errors and ensure frequencies are MINOR allele frequencies
+	transform(varbeta.begin(), varbeta.end(), varbeta.begin(), [](double x) { return x * x; });
+	transform(nvx.begin(), nvx.end(), nvx.begin(), [](double x) { return x > 0.5 ? 1.0 - x : x; });
 
 	if (type == coloc_type::COLOC_QUANT) {
-		// Square standard errors and ensure frequencies are MINOR allele frequencies
-		transform(nvx.begin(), nvx.end(), nvx.begin(), [](double x) { return x > 0.5 ? 1.0 - x : x; });
-
 		// Inverse beta calculation
 		invbeta = varbeta;
 		transform(invbeta.begin(), invbeta.end(), invbeta.begin(), [](double x) { return 1 / x; });
 		// Estimate sdY from 
 		transform(nvx.begin(), nvx.end(), ssize.begin(), nvx.begin(), [](double x, double n_) { return 2 * n_ * x * (1 - x); });
 
-		// Regress b*var(x) against 1/var(beta)
+		// Regress n*var(x) against 1/var(beta)
 		sdY = lm_fixed(invbeta, nvx); // same as: lm(nvx ~ invbeta - 1)
+		if (sdY < 0) {
+			spdlog::critical("sdY estimation is negative (sdY = {:.2f}) which may be caused by small datasets or those with errors. Cannot continue with colocalisation analysis.", sdY);
+			return false;
+		}
 		sdY = sqrt(sdY);
 	}
 
@@ -92,6 +95,7 @@ void coloc_analysis::estimate_bf(const vector<double> beta, const vector<double>
 	for (i = 0; i < size; i++) {
 		ABF->push_back(0.5 * (log_temp[i] + (r[i] * z[i] * z[i])));
 	}
+	return true;
 }
 
 /*
@@ -134,7 +138,8 @@ void coloc_analysis::init_coloc()
  */
 void coloc_analysis::init_coloc(string snp1, string snp2)
 {
-	perform_coloc();
+	if (perform_coloc() == false)
+		return;
 	spdlog::info("Conditioned results for SNP1: {}, SNP2: {}", snp1, snp2);
 	spdlog::info("H0: {:.2f}; H1: {:.2f}; H2: {:.2f}; H3: {:.2f}; H4: {:.2f}; abf_all: {:.2f}.", pp_abf[H0], pp_abf[H1], pp_abf[H2], pp_abf[H3], pp_abf[H4], log_abf_all);
 	results_to_file(snp1, snp2);
@@ -142,18 +147,20 @@ void coloc_analysis::init_coloc(string snp1, string snp2)
 
 /*
  * Performs the colocalisation analysis and calls relevant helper calculation functions.
- * @ret void
+ * @ret bool
  */
-void coloc_analysis::perform_coloc()
+bool coloc_analysis::perform_coloc()
 {
 	vector<double> temp, temp2;
 	// Estimate sdY and then Bayes factor for the two datasets
 	// First the conditional analysis dataset
-	estimate_bf(matched->betas1, matched->ses1, matched->mafs1, matched->ns1, matched->type1, &temp);
+	if (estimate_bf(matched->betas1, matched->ses1, matched->mafs1, matched->ns1, matched->type1, &temp) == false)
+		return false;
 	ABF_1 = &temp;
 
 	// Now the outcome phenotype dataset
-	estimate_bf(matched->betas2, matched->ses2, matched->mafs2, matched->ns2, matched->type2, &temp2);
+	if (estimate_bf(matched->betas2, matched->ses2, matched->mafs2, matched->ns2, matched->type2, &temp2) == false)
+		return false;
 	ABF_2 = &temp2;
 
 	// "Merge" ABFs for SNPs in both datasets and sum
@@ -171,6 +178,7 @@ void coloc_analysis::perform_coloc()
 
 	// Combine the PPs to find each H
 	combine_abf(ABF_sum.size());
+	return true;
 }
 
 /*
