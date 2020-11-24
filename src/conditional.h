@@ -96,7 +96,7 @@ private:
 
 	double massoc_calcu_Ve(const vector<size_t> &selected, eigenVector &bJ, eigenVector &b);
 	void LD_rval(const vector<size_t> &idx, eigenMatrix &rval);
-	void LD_rval(const vector<size_t> &v1, const vector<size_t> &v2, eigenMatrix &rval);
+	void LD_rval(const vector<size_t> &v1, const vector<size_t> &v2, eigenMatrix &rval, reference *ref);
 	void sanitise_output(vector<size_t> &selected, vector<size_t> &remain, string name, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, reference *ref);
 
 	double a_ld_window; // Distance in kb after which SNPs are considered to be in LD
