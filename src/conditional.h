@@ -7,6 +7,7 @@
 #include <string>
 #include <sys/stat.h>
 
+#include <Eigen/StdVector>
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
 
@@ -18,6 +19,8 @@ typedef Eigen::SparseMatrix<float, Eigen::ColMajor, long long> eigenSparseMat;
 #else
 typedef Eigen::SparseMatrix<double, Eigen::ColMajor, long long> eigenSparseMat;
 #endif
+
+EIGEN_DEFINE_STL_VECTOR_SPECIALIZATION(eigenSparseMat);
 using namespace Eigen;
 using namespace std;
 
