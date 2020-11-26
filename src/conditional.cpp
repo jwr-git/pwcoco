@@ -864,7 +864,7 @@ void cond_analysis::LD_rval(const vector<size_t> &idx, eigenMatrix &rval)
 
 void cond_analysis::sanitise_output(vector<size_t> &selected, string name, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, reference *ref)
 {
-	string filename = cname + "." + name + ".cojo";
+	string filename = a_out + "." + cname + "." + name + ".cojo";
 	ofstream ofile(filename.c_str());
 	size_t i = 0, j = 0;
 	
