@@ -44,7 +44,7 @@ coloc_analysis::coloc_analysis()
 bool coloc_analysis::estimate_bf(const vector<double> beta, const vector<double> se, const vector<double> freq, 
 	const vector<double> n, coloc_type type, vector<double> *ABF)
 {
-	vector<double>invbeta, // 1/varbeta
+	vector<double> invbeta, // 1/varbeta
 		nvx = freq, 
 		z = beta, 
 		varbeta = se, // se^2

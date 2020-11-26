@@ -80,6 +80,8 @@ void phenotype::read_phenofile(string filename)
 	map<string, int>::iterator iter;
 	int count = 0;
 	double h = 0.0, Vp = 0.0;
+	bool delim_found = false;
+	char sep = '\t';
 
 	// Buffers
 	string snp_name_buf, allele1_buf, allele2_buf;
@@ -105,7 +107,27 @@ void phenotype::read_phenofile(string filename)
 		se_buf = 0.0; 
 		freq_buf = -1;
 
-		while (getline(ss, substr, '\t')) {
+		// Check delimiter
+		if (ss.str().find('\t', 0) != string::npos) {
+			sep = '\t';
+			delim_found = true;
+		}
+		else if (ss.str().find(',', 0) != string::npos) {
+			sep = ',';
+			delim_found = true;
+		}
+		else if (ss.str().find(' ', 0) != string::npos) {
+			sep = ' ';
+			delim_found = true;
+		}
+
+		if (!delim_found) {
+			spdlog::critical("Cannot determine delimiter for phenotype file \"{}\". Use either tab, comma or space-delimited.", filename);
+			failed = true;
+			return;
+		}
+
+		while (getline(ss, substr, sep)) {
 			if (string2upper(substr) == "SNP") // Skip header
 				break;
 
