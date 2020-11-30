@@ -877,49 +877,31 @@ void cond_analysis::LD_rval(const vector<size_t> &v1, const vector<size_t> &v2, 
 		v1_size = v1.size(),
 		v2_size = v2.size();
 	double d_temp = 0.0;
-	eigenVector diagB(max(v1_size, v2_size)),
-		x_i(n),
+	eigenVector x_i(n),
 		x_j(n);
-	eigenSparseMat B_ld;
-	eigenSparseMat B_i_ld; // Identity matrix of B
-	eigenSparseMat B_N_ld;
-	eigenSparseMat B_N_i_ld; // Identity matrix of B_N
-	eigenVector D_N_ld;
-
-
-	B_ld.resize(v1_size, v2_size);
-	B_N_ld.resize(v1_size, v2_size);
-	D_N_ld.resize(v1_size);
+	eigenMatrix B_ld(v1_size, v2_size);
 
 	for (i = 0; i < v1_size; i++) {
-		D_N_ld[i] = msx[v1[i]] * nD[v1[i]];
-		B_ld.startVec(i);
-		B_ld.insertBack(i, i) = msx_b[v1[i]];
-
-		B_N_ld.startVec(i);
-		B_N_ld.insertBack(i, i) = D_N[i];
-
-		diagB[i] = msx_b[v1[i]];
 		makex_eigenVector(v1[i], x_i, false, ref);
 
 		for (j = 0; j < v2_size; j++) {
+			if (v1[i] == v2[j]) {
+				B_ld(i, j) = msx_b[v1[i]];
+				continue;
+			}
+
 			if ((ref->bim_chr[to_include[v1[i]]] == ref->bim_chr[to_include[v2[j]]]
 				&& abs(ref->bim_bp[to_include[v1[i]]] - ref->bim_bp[to_include[v2[j]]]) < a_ld_window)
 				)
 			{
 				makex_eigenVector(v2[j], x_j, false, ref);
-
-				d_temp = x_i.dot(x_j) / (double)n;
-				B_ld.insertBack(i, j) = d_temp;
-				B_N_ld.insertBack(i, j) = d_temp
-					* min(nD[v1[i]], nD[v2[j]])
-					* sqrt(msx[v1[i]] * msx[v2[j]] / (msx_b[v1[i]] * msx_b[v2[j]]));
+				B_ld(i, j) = x_i.dot(x_j) / (double)n;
+			}
+			else {
+				B_ld(i, j) = 0;
 			}
 		}
 	}
-
-	B_ld.finalize();
-	B_N_ld.finalize();
 
 	eigenVector sd_v1(v1_size), sd_v2(v2_size);
 
