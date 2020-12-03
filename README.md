@@ -5,6 +5,8 @@ This tool integrates methods from [GCTA-COJO](https://cnsgenomics.com/software/g
 
 ## Requirements
 - Cmake >= 3.10
+
+Libraries:
 - Eigen >= 3.3.7
 - spdlog >= 1.8.1
 
@@ -26,7 +28,7 @@ If building on the University of Bristol's HPC, load the module `languages/gcc-9
 
 ### Windows
 
-A .sln file is provided for Visual Studio 2019. Be aware that there may be issues using the Eigen library, as packaged, on Windows machines.
+A .sln file is provided for Visual Studio 2019. Be aware OpenMP may not be enabled by default on VS and may need to be enabled manually.
 
 ## How to Use
 PWCoCo is a command-line program. Here is a list of accepted flags with a description of each one:
@@ -49,12 +51,12 @@ For acceptable formats for these files, please see below.
 - `--maf` - filters SNPs from the reference dataset according to this threshold, default is 0.1.
 - `--freq_threshold` - SNPs in the phenotype datasets which differ by more than this amount in the reference dataset will be excluded, default is 0.2.
 - `--init_h4` - PWCoCo will run an initial colocalisation on the unconditioned dataset. If the H4 for this analysis reaches this threshold, the program will terminate early. Default is 80 (i.e. 80%). Set to 0 if you would like the program to always continue regardless of the initial colocalisation result.
-- `--out_cond` - true/false: would you like for the conditioned data to be saved as text files as well?
+- `--out_cond` - would you like for the conditioned data to be saved as text files as well? Just including this flag will work (no extra argument following this flag is necessary)
 
 ## Example
 Example files will be provided soon so that a full analysis can be run. Instead, here is an example command to run the analysis:
 
-`pwcoco --bfile "../../1kg_plink/chr5" --phen1_file "tgfbi/TGFBI_exposure.txt" --phen2_file "tgfbi/TGFBI_outcome.txt" --out "tgfbi/res" --chr 5 --maf 0.01 --out_cond 1`
+`pwcoco --bfile "../../1kg_plink/chr5" --phen1_file "tgfbi/TGFBI_exposure.txt" --phen2_file "tgfbi/TGFBI_outcome.txt" --out "tgfbi/res" --chr 5 --maf 0.01 --out_cond`
 
 ### Input File Formats
 The bfile, or reference files, must be in Plink format. This means a .bed, .bim and .fam file in the same directory with the same name.
