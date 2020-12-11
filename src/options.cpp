@@ -48,7 +48,8 @@ void option(int option_num, char* option_str[])
 	unsigned short chr = 0;
 	int i = 0;
 	double p_cutoff = 5e-8, collinear = 0.9, maf = 0.1, ld_window = 1.0e7,
-		freq_threshold = 0.2, init_h4 = 80, top_snp = 1e10;
+		freq_threshold = 0.2, init_h4 = 80, top_snp = 1e10,
+		p1 = 1e-4, p2 = 1e-4, p3 = 1e-5;
 	string bfile = "", bim_file = "", fam_file = "", bed_file = "",
 		phen1_file = "", phen2_file = "",
 		out = "pwcoco_out", log = "pwcoco_log", snplist = "",
@@ -143,6 +144,15 @@ void option(int option_num, char* option_str[])
 		else if (opt == "--out_cond") {
 			out_cond = stoi(option_str[++i]) ? true : false;
 		}
+		else if (opt == "--coloc_pp") {
+			p1 = stod(option_str[++i]);
+			p2 = stod(option_str[++i]);
+			p3 = stod(option_str[++i]);
+
+			p1 = (p1 > 1.0 ? 1.0 : p1 < 1e-50 ? 1e-50 : p1);
+			p2 = (p2 > 1.0 ? 1.0 : p2 < 1e-50 ? 1e-50 : p2);
+			p3 = (p3 > 1.0 ? 1.0 : p3 < 1e-50 ? 1e-50 : p3);
+		}
 	}
 
 	// First set up the logger
@@ -223,7 +233,7 @@ void option(int option_num, char* option_str[])
 	}
 
 	mdata *matched = new mdata(exposure, outcome);
-	coloc_analysis *initial_coloc = new coloc_analysis(matched, out, 1e-4, 1e-4, 1e-5);
+	coloc_analysis *initial_coloc = new coloc_analysis(matched, out, p1, p2, p3);
 	initial_coloc->init_coloc();
 
 	if (initial_coloc->pp_abf[H4] > init_h4) {
@@ -287,7 +297,7 @@ void option(int option_num, char* option_str[])
 			out_snp_name = out_analysis->get_ind_snp_name(j);
 
 			mdata *matched_conditional = new mdata(exp_analysis, out_analysis);
-			coloc_analysis *conditional_coloc = new coloc_analysis(matched_conditional, out, 1e-4, 1e-4, 1e-5);
+			coloc_analysis *conditional_coloc = new coloc_analysis(matched_conditional, out, p1, p2, p3);
 			initial_coloc->init_coloc(exp_snp_name, out_snp_name);
 
 			delete(matched_conditional);
@@ -303,7 +313,7 @@ void option(int option_num, char* option_str[])
 			exp_snp_name = exp_analysis->get_ind_snp_name(i);
 
 			mdata *matched_conditional = new mdata(exp_analysis, out_analysis);
-			coloc_analysis *conditional_coloc = new coloc_analysis(matched_conditional, out, 1e-4, 1e-4, 1e-5);
+			coloc_analysis *conditional_coloc = new coloc_analysis(matched_conditional, out, p1, p2, p3);
 			initial_coloc->init_coloc(exp_snp_name, out_snp_name);
 
 			delete(matched_conditional);
@@ -321,7 +331,7 @@ void option(int option_num, char* option_str[])
 				out_snp_name = out_analysis->get_ind_snp_name(j);
 
 				mdata *matched_conditional = new mdata(exp_analysis, out_analysis);
-				coloc_analysis *conditional_coloc = new coloc_analysis(matched_conditional, out, 1e-4, 1e-4, 1e-5);
+				coloc_analysis *conditional_coloc = new coloc_analysis(matched_conditional, out, p1, p2, p3);
 				initial_coloc->init_coloc(exp_snp_name, out_snp_name);
 
 				delete(matched_conditional);
