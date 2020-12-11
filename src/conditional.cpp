@@ -948,7 +948,7 @@ void cond_analysis::sanitise_output(vector<size_t> &selected, vector<size_t> &re
 
 		// LD structure
 		for (k = 0; k < selected.size(); k++) {
-			ofile << ld(j, k) << "\t";
+			ofile << ld(i, k) << "\t";
 		}
 		ofile << endl;
 	}
