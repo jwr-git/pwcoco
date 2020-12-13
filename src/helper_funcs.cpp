@@ -11,31 +11,6 @@ bool file_exists(const std::string &name)
 	return (stat(name.c_str(), &buffer) == 0);
 }
 
-/*
- * Helper function that shows warnings from the tool.
- * These warnings will not end the program.
- * @param const string msg Warning message
- * @param bool verbose Whether to show the warning or not.
- * @ret void
- */
-void ShowWarning(const std::string msg, bool verbose)
-{
-	if (verbose) {
-		std::cout << "\033[0;31m" << msg << "\033[0m" << std::endl;
-	}
-}
-
-/*
- * Helper function that shows errors from the tool.
- * These warnings will end the program.
- * @param const string msg Error message
- * @ret void
- */
-void ShowError(const std::string msg)
-{
-	throw(msg);
-}
-
 void checkEntry(std::string txt, double *val)
 {
 	if (txt == "." || txt == "NA" || txt == "") {
@@ -177,7 +152,7 @@ double logdiff(double x, double y)
 double lm(const std::vector<double> &x, const std::vector<double> &y)
 {
 	if (x.size() != y.size()) {
-		ShowError("Cannot compute regression for colocalisation due to differing sizes of vectors.");
+		spdlog::critical("Cannot compute regression for colocalisation due to differing sizes of vectors.");
 	}
 	std::size_t n = x.size();
 	double sumX = std::accumulate(x.begin(), x.end(), 0.0);
@@ -204,7 +179,7 @@ double lm(const std::vector<double> &x, const std::vector<double> &y)
 double lm_fixed(const std::vector<double> &x, const std::vector<double> &y)
 {
 	if (x.size() != y.size()) {
-		throw("Cannot compute regression for colocalisation due to differing sizes of vectors.");
+		spdlog::critical("Cannot compute regression for colocalisation due to differing sizes of vectors.");
 	}
 	size_t n = x.size();
 	double sumXY = 0.0;
