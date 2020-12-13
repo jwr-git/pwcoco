@@ -14,7 +14,7 @@ coloc_analysis::coloc_analysis(mdata *mdat, string out, double pval1, double pva
 	h0 = h1 = h2 = h3 = h4 = 0.0;
 	log_abf_all = log_ABF_sum = 0.0;
 
-	matched = mdat;
+	matched = new mdata(*mdat);
 	outfile = out;
 	spdlog::info("Colocalisation analysis initialised with {} SNPs.", matched->snps1.size());
 }
@@ -35,6 +35,14 @@ coloc_analysis::coloc_analysis()
 	ABF_2 = NULL;
 	h0 = h1 = h2 = h3 = h4 = 0.0;
 	log_abf_all = log_ABF_sum = 0.0;
+}
+
+/*
+ * cond_analysis deconstructor
+ */
+coloc_analysis::~coloc_analysis()
+{
+	delete(matched);
 }
 
 /*
