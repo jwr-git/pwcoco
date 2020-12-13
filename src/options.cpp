@@ -276,6 +276,13 @@ void option(int option_num, char* option_str[])
 		return;
 	}
 
+#ifdef PYTHON_INC
+	Py_Initialize();
+
+	PyObject *sys = PyImport_ImportModule("sys");
+	PyObject *path = PyObject_GetAttrString(sys, "path");
+#endif
+
 	// Perform PWCoCo!
 	// TODO There's a clearer way to do this for sure
 	string exp_snp_name = "", out_snp_name = "";
@@ -330,6 +337,10 @@ void option(int option_num, char* option_str[])
 			}
 		}
 	}
+
+#ifdef PYTHON_INC
+	Py_Finalize();
+#endif
 
 	chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 	spdlog::info("Analysis finished. Computational time: {} secs", (std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()) / 1000000.0);

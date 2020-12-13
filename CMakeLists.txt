@@ -29,9 +29,19 @@ else ()
 	include_directories("${CMAKE_CURRENT_SOURCE_DIR}/include/")
 endif()
 
-find_package(OpenMP)
 add_executable(pwcoco src/options.cpp src/coloc.cpp src/conditional.cpp src/data.cpp src/dcdflib.cpp src/helper_funcs.cpp)
+
+find_package(OpenMP)
 if (OpenMP_CXX_FOUND)
 	message (STATUS "Linking OpenMP")
 	target_link_libraries(pwcoco PUBLIC OpenMP::OpenMP_CXX)
+endif()
+
+find_package(PythonLibs) # for plotting
+if (Python_FOUND)
+	message (STATUS "Linking Python")
+	CFLAGS+=-PYTHON_INC
+	include_directories(${PYTHON_INCLUDE_DIRS})
+	target_link_libraries(pwcoco ${PYTHON_LIBRARIES})
+	add_compile_definitions(PYTHON_DIR="${CMAKE_CURRENT_SOURCE_DIR}/python/")
 endif()

@@ -812,7 +812,7 @@ void cond_analysis::pw_conditional(int pos, bool out_cond, reference *ref)
 
 	massoc_conditional(selected, remain, bC, bC_se, pC, ref);
 	if (out_cond) {
-		sanitise_output(selected, remain, "remain." + ref->bim_snp_name[ind_snps[pos]], bC, bC_se, pC, ref);
+		sanitise_output(selected, remain, bC, bC_se, pC, ref);
 	}
 
 	// Save in friendly format for mdata class
@@ -918,12 +918,18 @@ void cond_analysis::LD_rval(const vector<size_t> &v1, const vector<size_t> &v2, 
 	}
 }
 
-void cond_analysis::sanitise_output(vector<size_t> &selected, vector<size_t> &remain, string name, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, reference *ref)
+void cond_analysis::sanitise_output(vector<size_t> &selected, vector<size_t> &remain, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, reference *ref)
 {
-	string filename = cname + "." + name + ".cojo";
-	ofstream ofile(filename.c_str());
+	string filename;
 	size_t i = 0, j = 0, k;
 	eigenMatrix ld(remain.size(), selected.size());
+
+	filename = a_out + "." + get_cond_name();
+	for (i = 0; i < selected.size(); i++) {
+		filename = filename + "." + ref->bim_snp_name[to_include[selected[i]]];
+	}
+	filename = filename + ".cojo";
+	ofstream ofile(filename.c_str());
 
 	LD_rval(remain, selected, ld, ref);
 	
@@ -953,6 +959,45 @@ void cond_analysis::sanitise_output(vector<size_t> &selected, vector<size_t> &re
 		ofile << endl;
 	}
 	ofile.close();
+
+#ifdef PYTHON_INC
+	string plotname = a_out + "." + get_cond_name() + "." + ref->bim_snp_name[to_include[selected[0]]] + ".png";
+	locus_plot(_strdup("../../python/locusplotter.py"), (char *)filename.c_str(), (char *)plotname.c_str(), (char *)(ref->bim_snp_name[to_include[selected[0]]].c_str()), ref->bim_bp[to_include[selected[0]]], ja_pval[selected[0]], 1e-25);
+#endif
+}
+
+void cond_analysis::locus_plot(char *filename, char *datafile, char *to_save, char *snpname, double bp, double p, double pC)
+{
+	int argc = 8;
+	char *argv[8];
+
+	argv[0] = _strdup("../../python/locusplotter.py");
+	argv[1] = filename;
+	argv[2] = datafile;
+	argv[3] = to_save;
+	argv[4] = snpname;
+	argv[5] = _strdup(to_string(bp).c_str());
+	argv[6] = _strdup(to_string(p).c_str());
+	argv[7] = _strdup(to_string(pC).c_str());
+
+	wchar_t **_argv = (wchar_t **)PyMem_Malloc(sizeof(wchar_t *) * argc);
+	for (int i = 0; i < argc; i++) {
+		wchar_t *arg = Py_DecodeLocale(argv[i], NULL);
+		_argv[i] = arg;
+	}
+	Py_SetProgramName(_argv[0]);
+
+	PySys_SetArgv(argc, _argv);
+
+	Py_Main(argc, _argv);
+
+	for (int i = 0; i < argc; i++) {
+		PyMem_RawFree(_argv[i]);
+		_argv[i] = nullptr;
+	}
+	_argv = nullptr;
+
+	return;
 }
 
 /*
