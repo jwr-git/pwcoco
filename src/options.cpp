@@ -230,6 +230,7 @@ void option(int option_num, char* option_str[])
 		spdlog::info("Stopping algorthim as H4 for initial colocalisation analysis is already at or above threshold ({}%).", init_h4*100);
 		return;
 	}
+	delete(initial_coloc);
 
 	// Initialise the reference
 	reference *ref = new reference(out, chr);
@@ -286,9 +287,9 @@ void option(int option_num, char* option_str[])
 			out_analysis->pw_conditional(out_analysis->get_num_ind() > 1 ? (int)j : -1, out_cond, ref); // Be careful not to remove the only independent SNP
 			out_snp_name = out_analysis->get_ind_snp_name(j);
 
-			mdata *matched_conditional = new mdata(exp_analysis, out_analysis);
+			mdata *matched_conditional = new mdata(out_analysis, exposure);
 			coloc_analysis *conditional_coloc = new coloc_analysis(matched_conditional, out, 1e-4, 1e-4, 1e-5);
-			initial_coloc->init_coloc(exp_snp_name, out_snp_name);
+			conditional_coloc->init_coloc(exp_snp_name, out_snp_name);
 
 			delete(matched_conditional);
 			delete(conditional_coloc);
@@ -302,9 +303,9 @@ void option(int option_num, char* option_str[])
 			exp_analysis->pw_conditional(exp_analysis->get_num_ind() > 1 ? (int)i : -1, out_cond, ref); // Be careful not to remove the only independent SNP
 			exp_snp_name = exp_analysis->get_ind_snp_name(i);
 
-			mdata *matched_conditional = new mdata(exp_analysis, out_analysis);
+			mdata *matched_conditional = new mdata(exp_analysis, outcome);
 			coloc_analysis *conditional_coloc = new coloc_analysis(matched_conditional, out, 1e-4, 1e-4, 1e-5);
-			initial_coloc->init_coloc(exp_snp_name, out_snp_name);
+			conditional_coloc->init_coloc(exp_snp_name, out_snp_name);
 
 			delete(matched_conditional);
 			delete(conditional_coloc);
@@ -322,7 +323,7 @@ void option(int option_num, char* option_str[])
 
 				mdata *matched_conditional = new mdata(exp_analysis, out_analysis);
 				coloc_analysis *conditional_coloc = new coloc_analysis(matched_conditional, out, 1e-4, 1e-4, 1e-5);
-				initial_coloc->init_coloc(exp_snp_name, out_snp_name);
+				conditional_coloc->init_coloc(exp_snp_name, out_snp_name);
 
 				delete(matched_conditional);
 				delete(conditional_coloc);
