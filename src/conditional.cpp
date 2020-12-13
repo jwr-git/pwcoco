@@ -1040,6 +1040,8 @@ mdata::mdata(cond_analysis *ca1, cond_analysis *ca2)
 
 		itmap++;
 	}
+
+	/// Need to add COLOC_TYPE here and, if relevant, cases as well
 }
 
 /*
@@ -1057,8 +1059,13 @@ mdata::mdata(cond_analysis *ca, phenotype *ph)
 		vector<string>::iterator it;
 		string snp_to_find = pheno_snps[i];
 
-		if ((it = find(ca->snps_cond.begin(), ca->snps_cond.end(), snp_to_find)) != ca->snps_cond.end()) {
-			snp_map.insert(pair<size_t, size_t>(distance(ca->snps_cond.begin(), it), i));
+		if ((it = find(ca->snps_cond.begin(), ca->snps_cond.end(), snp_to_find)) != ca->snps_cond.end()) 
+		{
+			size_t dist = distance(ca->snps_cond.begin(), it);
+			// Some SNPs after the conditional analysis have 0 beta - need to figure out why that is
+			if (ca->b_cond[dist] == 0)
+				continue;
+			snp_map.insert(pair<size_t, size_t>(dist, i));
 		}
 	}
 

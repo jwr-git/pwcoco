@@ -126,7 +126,8 @@ private:
 
 	eigenVector msx; 
 	eigenVector msx_b; 
-	eigenVector nD; 
+	eigenVector nD;
+	vector<double> ncases; /// Note that this is not conditioned like nD
 
 	string cname;
 
