@@ -93,14 +93,11 @@ bool coloc_analysis::estimate_bf(const vector<double> beta, const vector<double>
 	r = varbeta;
 	transform(r.begin(), r.end(), r.begin(), [sd_prior](double v) { return (sd_prior * sd_prior) / (sd_prior * sd_prior + v); });
 
-	log_temp = varbeta;
-	transform(log_temp.begin(), log_temp.end(), log_temp.begin(), [sd_prior](double x) { return log(x) - log(sd_prior * sd_prior + x); });
-
 	// Caluclate approximate Bayes factor
 	size_t i, size = varbeta.size();
 	//ABF->resize(size);
 	for (i = 0; i < size; i++) {
-		ABF->push_back(0.5 * (log_temp[i] + (r[i] * z[i] * z[i])));
+		ABF->push_back(0.5 * (log(1 - r[i]) + (r[i] * z[i] * z[i])));
 	}
 	return true;
 }

@@ -901,4 +901,5 @@ mdata::mdata()
 	mafs2.clear();
 	ns1.clear();
 	ns2.clear();
+	type1 = type2 = coloc_type::COLOC_NONE;
 }

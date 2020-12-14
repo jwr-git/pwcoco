@@ -173,7 +173,8 @@ void cond_analysis::match_gwas_phenotype(phenotype *pheno, reference *ref)
 	ja_beta_se.resize(to_include.size());
 	ja_pval.resize(to_include.size());
 	ja_chisq.resize(to_include.size());
-	ja_N_outcome.resize(to_include.size());
+	ja_N_outcome.resize(to_include.size()); // Unused?
+	ja_n_cases.resize(to_include.size());
 
 	for (i = 0; i < to_include.size(); i++) {
 		ja_snp_name[i] = pheno->snp_name[idx[i]];
@@ -184,6 +185,7 @@ void cond_analysis::match_gwas_phenotype(phenotype *pheno, reference *ref)
 		ja_chisq[i] = (ja_beta[i] / ja_beta_se[i]) * (ja_beta[i] / ja_beta_se[i]);
 		ja_pval[i] = pchisq(ja_chisq[i], 1.0);
 		ja_N_outcome[i] = pheno->n[idx[i]];
+		ja_n_cases[i] = pheno->n_case[idx[i]];
 	}
 
 	string filename = a_out + "." + pheno->get_phenoname() + ".included";
@@ -831,6 +833,7 @@ void cond_analysis::pw_conditional(int pos, bool out_cond, reference *ref)
 		maf_cond.push_back(0.5 * mu[to_include[j]]);
 		p_cond.push_back(ja_pval[j]);
 		n_cond.push_back(nD[j]);
+		s_cond.push_back(ja_n_cases[to_include[j]]);
 	}
 
 	for (size_t i = 0; i < remain.size(); i++) {
@@ -841,6 +844,7 @@ void cond_analysis::pw_conditional(int pos, bool out_cond, reference *ref)
 		maf_cond.push_back(0.5 * mu[to_include[j]]);
 		p_cond.push_back(pC[i]);
 		n_cond.push_back(nD[i]);
+		s_cond.push_back(ja_n_cases[to_include[j]]);
 	}
 	cond_passed = bC.size() > 0;
 }
@@ -1016,8 +1020,14 @@ mdata::mdata(cond_analysis *ca1, cond_analysis *ca2)
 	// Match SNPs
 	for (it = ca1->snps_cond.begin(); it != ca1->snps_cond.end(); it++) {
 		vector<string>::iterator it2;
-		if ((it2 = find(ca2->snps_cond.begin(), ca2->snps_cond.end(), *it)) != ca2->snps_cond.end()) {
-			snp_map.insert(pair<size_t, size_t>(distance(ca1->snps_cond.begin(), it), distance(ca2->snps_cond.begin(), it2)));
+		if ((it2 = find(ca2->snps_cond.begin(), ca2->snps_cond.end(), *it)) != ca2->snps_cond.end()) 
+		{
+			size_t dist1 = distance(ca1->snps_cond.begin(), it),
+				dist2 = distance(ca2->snps_cond.begin(), it2);
+			// Some SNPs after the conditional analysis have 0 beta - need to figure out why that is
+			if (ca1->b_cond[dist1] == 0 || ca2->b_cond[dist2] == 0)
+				continue;
+			snp_map.insert(pair<size_t, size_t>(dist1, dist2));
 		}
 	}
 
@@ -1031,6 +1041,9 @@ mdata::mdata(cond_analysis *ca1, cond_analysis *ca2)
 		pvals1.push_back(ca1->p_cond[itmap->first]);
 		mafs1.push_back(ca1->maf_cond[itmap->first]);
 		ns1.push_back(ca1->n_cond[itmap->first]);
+		if (ca1->get_coloc_type() == coloc_type::COLOC_CC) {
+			s1.push_back(ca1->s_cond[itmap->first]);
+		}
 
 		snps2.push_back(ca2->snps_cond[itmap->second]);
 		betas2.push_back(ca2->b_cond[itmap->second]);
@@ -1038,11 +1051,15 @@ mdata::mdata(cond_analysis *ca1, cond_analysis *ca2)
 		pvals2.push_back(ca2->p_cond[itmap->second]);
 		mafs2.push_back(ca2->maf_cond[itmap->second]);
 		ns2.push_back(ca2->n_cond[itmap->second]);
+		if (ca2->get_coloc_type() == coloc_type::COLOC_CC) {
+			s2.push_back(ca2->s_cond[itmap->first]);
+		}
 
 		itmap++;
 	}
 
-	/// Need to add COLOC_TYPE here and, if relevant, cases as well
+	type1 = ca1->get_coloc_type();
+	type2 = ca2->get_coloc_type();
 }
 
 /*
@@ -1080,6 +1097,9 @@ mdata::mdata(cond_analysis *ca, phenotype *ph)
 		pvals1.push_back(ca->p_cond[itmap->first]);
 		mafs1.push_back(ca->maf_cond[itmap->first]);
 		ns1.push_back(ca->n_cond[itmap->first]);
+		if (ca->get_coloc_type() == coloc_type::COLOC_CC) {
+			s1.push_back(ca->s_cond[itmap->first]);
+		}
 
 		snps2.push_back(ph->snp_name[itmap->second]);
 		betas2.push_back(ph->beta[itmap->second]);
@@ -1087,7 +1107,13 @@ mdata::mdata(cond_analysis *ca, phenotype *ph)
 		pvals2.push_back(ph->pval[itmap->second]);
 		mafs2.push_back(ph->freq[itmap->second]);
 		ns2.push_back(ph->n[itmap->second]);
+		if (ph->get_coloc_type() == coloc_type::COLOC_CC) {
+			s2.push_back(ph->n_case[itmap->second]);
+		}
 
 		itmap++;
 	}
+
+	type1 = ca->get_coloc_type();
+	type2 = ph->get_coloc_type();
 }
