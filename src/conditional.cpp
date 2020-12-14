@@ -922,7 +922,6 @@ void cond_analysis::sanitise_output(vector<size_t> &selected, vector<size_t> &re
 {
 	string filename;
 	size_t i = 0, j = 0, k;
-	eigenMatrix ld(remain.size(), selected.size());
 
 	filename = a_out + "." + get_cond_name();
 	for (i = 0; i < selected.size(); i++) {
@@ -931,12 +930,14 @@ void cond_analysis::sanitise_output(vector<size_t> &selected, vector<size_t> &re
 	filename = filename + ".cojo";
 	ofstream ofile(filename.c_str());
 
-	LD_rval(remain, selected, ld, ref);
-	
 	if (!ofile) {
 		spdlog::warn("Cannot open file {} for writing.", filename);
 		return;
 	}
+
+	// LD matrix
+	eigenMatrix ld(remain.size(), selected.size());
+	LD_rval(remain, selected, ld, ref);
 
 	// Header
 	ofile << "Chr\tSNP\tbp\trefA\tfreq\tb\tse\tp\tn\tfreq_geno\tbC\tbC_se\tpC";
@@ -950,19 +951,19 @@ void cond_analysis::sanitise_output(vector<size_t> &selected, vector<size_t> &re
 		ofile << ref->bim_chr[to_include[j]] << "\t" << ref->bim_snp_name[to_include[j]] << "\t" << ref->bim_bp[to_include[j]] << "\t";
 		ofile << ref->ref_A[to_include[j]] << "\t" << ja_freq[j] << "\t" << ja_beta[j] << "\t" << ja_beta_se[j] << "\t";
 		ofile << ja_pval[j] << "\t" << nD[j] << "\t" << 0.5 * mu[to_include[j]] << "\t";
-		ofile << bJ[i] << "\t" << bJ_se[i] << "\t" << pJ[i] << "\t";
+		ofile << bJ[i] << "\t" << bJ_se[i] << "\t" << pJ[i];
 
 		// LD structure
 		for (k = 0; k < selected.size(); k++) {
-			ofile << ld(i, k) << "\t";
+			ofile << "\t" << ld(i, k);
 		}
 		ofile << endl;
 	}
 	ofile.close();
 
 #ifdef PYTHON_INC
-	string plotname = a_out + "." + get_cond_name() + "." + ref->bim_snp_name[to_include[selected[0]]] + ".png";
-	locus_plot(_strdup("../../python/locusplotter.py"), (char *)filename.c_str(), (char *)plotname.c_str(), (char *)(ref->bim_snp_name[to_include[selected[0]]].c_str()), ref->bim_bp[to_include[selected[0]]], ja_pval[selected[0]], 1e-25);
+	//string plotname = a_out + "." + get_cond_name() + "." + ref->bim_snp_name[to_include[selected[0]]] + ".png";
+	//locus_plot(_strdup("../../python/locusplotter.py"), (char *)filename.c_str(), (char *)plotname.c_str(), (char *)(ref->bim_snp_name[to_include[selected[0]]].c_str()), ref->bim_bp[to_include[selected[0]]], ja_pval[selected[0]], 1e-25);
 #endif
 }
 
