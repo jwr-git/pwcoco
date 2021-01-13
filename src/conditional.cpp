@@ -779,7 +779,7 @@ void cond_analysis::find_independent_snps(reference *ref)
 }
 
 /*
- * Run step-wise selection to find independent association signals/SNP
+ * Run conditional analysis on marginal data for single association.
  */
 void cond_analysis::pw_conditional(int pos, bool out_cond, reference *ref)
 {
