@@ -14,6 +14,10 @@
 #include "data.h"
 #include "helper_funcs.h"
 
+#ifdef PYTHON_INC
+#include <Python.h>
+#endif
+
 #ifdef SINGLE_PRECISION
 typedef Eigen::SparseMatrix<float, Eigen::ColMajor, long long> eigenSparseMat;
 #else
@@ -69,6 +73,10 @@ public:
 		}
 	}
 
+	enum coloc_type get_coloc_type() {
+		return ctype;
+	}
+
 	void init_conditional(phenotype *pheno, reference *ref);
 	void find_independent_snps(reference *ref);
 	void pw_conditional(int pos, bool out_cond, reference *ref);
@@ -80,6 +88,7 @@ public:
 	vector<double> maf_cond; /// Minor allele frequency
 	vector<double> p_cond; /// P values
 	vector<double> n_cond; /// Sample sizes
+	vector<double> s_cond; /// Cases for case-control (TODO probably needs conditioned)
 
 private:
 	void match_gwas_phenotype(phenotype *pheno, reference *ref);
@@ -99,7 +108,9 @@ private:
 
 	double massoc_calcu_Ve(const vector<size_t> &selected, eigenVector &bJ, eigenVector &b);
 	void LD_rval(const vector<size_t> &idx, eigenMatrix &rval);
-	void sanitise_output(vector<size_t> &selected, string name, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, reference *ref);
+	void LD_rval(const vector<size_t> &v1, const vector<size_t> &v2, eigenMatrix &rval, reference *ref);
+	void sanitise_output(vector<size_t> &selected, vector<size_t> &remain, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, reference *ref);
+	void locus_plot(char *filename, char *datafile, char *to_save, char *snpname, double bp, double p, double pC);
 
 	double a_ld_window; // Distance in kb after which SNPs are considered to be in LD
 
@@ -116,11 +127,13 @@ private:
 	eigenVector ja_beta_se;
 	eigenVector ja_pval;
 	eigenVector ja_chisq;
-	eigenVector ja_N_outcome;
+	eigenVector ja_N_outcome; // May very well be unused
+	eigenVector ja_n_cases;
 
 	eigenVector msx; 
 	eigenVector msx_b; 
-	eigenVector nD; 
+	eigenVector nD;
+	vector<double> ncases; /// Note that this is not conditioned like nD
 
 	string cname;
 
@@ -156,4 +169,7 @@ private:
 	eigenVector D_N_master;
 	eigenSparseMat Z_master;
 	eigenSparseMat Z_N_master;
+
+	// Coloc related
+	coloc_type ctype; // Type of coloc to use: cc or quant
 };

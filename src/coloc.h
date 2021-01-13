@@ -18,6 +18,7 @@ class coloc_analysis {
 public:
 	coloc_analysis(mdata *mdat, string out, double pval1, double pval2, double pval3);
 	coloc_analysis();
+	~coloc_analysis();
 
 	void init_coloc();
 	void init_coloc(string snp1, string snp2);

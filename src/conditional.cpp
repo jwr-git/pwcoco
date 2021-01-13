@@ -173,7 +173,8 @@ void cond_analysis::match_gwas_phenotype(phenotype *pheno, reference *ref)
 	ja_beta_se.resize(to_include.size());
 	ja_pval.resize(to_include.size());
 	ja_chisq.resize(to_include.size());
-	ja_N_outcome.resize(to_include.size());
+	ja_N_outcome.resize(to_include.size()); // Unused?
+	ja_n_cases.resize(to_include.size());
 
 	for (i = 0; i < to_include.size(); i++) {
 		ja_snp_name[i] = pheno->snp_name[idx[i]];
@@ -184,6 +185,7 @@ void cond_analysis::match_gwas_phenotype(phenotype *pheno, reference *ref)
 		ja_chisq[i] = (ja_beta[i] / ja_beta_se[i]) * (ja_beta[i] / ja_beta_se[i]);
 		ja_pval[i] = pchisq(ja_chisq[i], 1.0);
 		ja_N_outcome[i] = pheno->n[idx[i]];
+		ja_n_cases[i] = pheno->n_case[idx[i]];
 	}
 
 	string filename = a_out + "." + pheno->get_phenoname() + ".included";
@@ -777,7 +779,7 @@ void cond_analysis::find_independent_snps(reference *ref)
 }
 
 /*
- * Run step-wise selection to find independent association signals/SNP
+ * Run conditional analysis on marginal data for single association.
  */
 void cond_analysis::pw_conditional(int pos, bool out_cond, reference *ref)
 {
@@ -812,7 +814,7 @@ void cond_analysis::pw_conditional(int pos, bool out_cond, reference *ref)
 
 	massoc_conditional(selected, remain, bC, bC_se, pC, ref);
 	if (out_cond) {
-		sanitise_output(remain, "remain." + ref->bim_snp_name[ind_snps[pos]], bC, bC_se, pC, ref);
+		sanitise_output(selected, remain, bC, bC_se, pC, ref);
 	}
 
 	// Save in friendly format for mdata class
@@ -831,6 +833,7 @@ void cond_analysis::pw_conditional(int pos, bool out_cond, reference *ref)
 		maf_cond.push_back(0.5 * mu[to_include[j]]);
 		p_cond.push_back(ja_pval[j]);
 		n_cond.push_back(nD[j]);
+		s_cond.push_back(ja_n_cases[to_include[j]]);
 	}
 
 	for (size_t i = 0; i < remain.size(); i++) {
@@ -841,10 +844,15 @@ void cond_analysis::pw_conditional(int pos, bool out_cond, reference *ref)
 		maf_cond.push_back(0.5 * mu[to_include[j]]);
 		p_cond.push_back(pC[i]);
 		n_cond.push_back(nD[i]);
+		s_cond.push_back(ja_n_cases[to_include[j]]);
 	}
 	cond_passed = bC.size() > 0;
 }
 
+/*
+ * Constructs LD matrix for a single vector of SNPs.
+ * Will be NxN size, where N is number of SNPs in the vector.
+ */
 void cond_analysis::LD_rval(const vector<size_t> &idx, eigenMatrix &rval)
 {
 	size_t i = 0, j = 0,
@@ -862,31 +870,139 @@ void cond_analysis::LD_rval(const vector<size_t> &idx, eigenMatrix &rval)
 	}
 }
 
-void cond_analysis::sanitise_output(vector<size_t> &selected, string name, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, reference *ref)
+/*
+ * Constructs LD matrix for two vectors of SNPs.
+ * Will be NxM size, where N and M are the number of SNPs in either vector.
+ */
+void cond_analysis::LD_rval(const vector<size_t> &v1, const vector<size_t> &v2, eigenMatrix &rval, reference *ref)
 {
-	string filename = a_out + "." + cname + "." + name + ".cojo";
+	size_t i = 0, j = 0, k = 0,
+		n = fam_ids_inc.size(),
+		v1_size = v1.size(),
+		v2_size = v2.size();
+	double d_temp = 0.0;
+	eigenVector x_i(n),
+		x_j(n);
+	eigenMatrix B_ld(v1_size, v2_size);
+
+	for (i = 0; i < v1_size; i++) {
+		makex_eigenVector(v1[i], x_i, false, ref);
+
+		for (j = 0; j < v2_size; j++) {
+			if (v1[i] == v2[j]) {
+				B_ld(i, j) = msx_b[v1[i]];
+				continue;
+			}
+
+			if ((ref->bim_chr[to_include[v1[i]]] == ref->bim_chr[to_include[v2[j]]]
+				&& abs(ref->bim_bp[to_include[v1[i]]] - ref->bim_bp[to_include[v2[j]]]) < a_ld_window)
+				)
+			{
+				makex_eigenVector(v2[j], x_j, false, ref);
+				B_ld(i, j) = x_i.dot(x_j) / (double)n;
+			}
+			else {
+				B_ld(i, j) = 0;
+			}
+		}
+	}
+
+	eigenVector sd_v1(v1_size), sd_v2(v2_size);
+
+	for (i = 0; i < v1_size; i++)
+		sd_v1[i] = sqrt(msx_b[v1[i]]);
+
+	for (i = 0; i < v2_size; i++)
+		sd_v2[i] = sqrt(msx_b[v2[i]]);
+
+	for (i = 0; i < v1_size; i++) {
+		for (j = 0; j < v2_size; j++) {
+			rval(i, j) = B_ld.coeff(i, j) / sd_v1[i] / sd_v2[j];
+		}
+	}
+}
+
+void cond_analysis::sanitise_output(vector<size_t> &selected, vector<size_t> &remain, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, reference *ref)
+{
+	string filename;
+	size_t i = 0, j = 0, k;
+
+	filename = a_out + "." + get_cond_name();
+	for (i = 0; i < selected.size(); i++) {
+		filename = filename + "." + ref->bim_snp_name[to_include[selected[i]]];
+	}
+	filename = filename + ".cojo";
 	ofstream ofile(filename.c_str());
-	size_t i = 0, j = 0;
-	
+
 	if (!ofile) {
 		spdlog::warn("Cannot open file {} for writing.", filename);
 		return;
 	}
 
+	// LD matrix
+	eigenMatrix ld(remain.size(), selected.size());
+	LD_rval(remain, selected, ld, ref);
+
 	// Header
 	ofile << "Chr\tSNP\tbp\trefA\tfreq\tb\tse\tp\tn\tfreq_geno\tbC\tbC_se\tpC";
+	for (i = 0; i < selected.size(); i++) {
+		ofile << "\t" << ref->bim_snp_name[to_include[selected[i]]];
+	}
 	ofile << endl;
 
-	for (i = 0; i < selected.size(); i++) {
-		j = selected[i];
+	for (i = 0; i < remain.size(); i++) {
+		j = remain[i];
 		ofile << ref->bim_chr[to_include[j]] << "\t" << ref->bim_snp_name[to_include[j]] << "\t" << ref->bim_bp[to_include[j]] << "\t";
 		ofile << ref->ref_A[to_include[j]] << "\t" << ja_freq[j] << "\t" << ja_beta[j] << "\t" << ja_beta_se[j] << "\t";
 		ofile << ja_pval[j] << "\t" << nD[j] << "\t" << 0.5 * mu[to_include[j]] << "\t";
+		ofile << bJ[i] << "\t" << bJ_se[i] << "\t" << pJ[i];
 
-		ofile << bJ[i] << "\t" << bJ_se[i] << "\t" << pJ[i] << "\t";
-		ofile << 0 << endl;
+		// LD structure
+		for (k = 0; k < selected.size(); k++) {
+			ofile << "\t" << ld(i, k);
+		}
+		ofile << endl;
 	}
 	ofile.close();
+
+#ifdef PYTHON_INC
+	//string plotname = a_out + "." + get_cond_name() + "." + ref->bim_snp_name[to_include[selected[0]]] + ".png";
+	//locus_plot(_strdup("../../python/locusplotter.py"), (char *)filename.c_str(), (char *)plotname.c_str(), (char *)(ref->bim_snp_name[to_include[selected[0]]].c_str()), ref->bim_bp[to_include[selected[0]]], ja_pval[selected[0]], 1e-25);
+#endif
+}
+
+void cond_analysis::locus_plot(char *filename, char *datafile, char *to_save, char *snpname, double bp, double p, double pC)
+{
+	int argc = 8;
+	char *argv[8];
+
+	argv[0] = _strdup("../../python/locusplotter.py");
+	argv[1] = filename;
+	argv[2] = datafile;
+	argv[3] = to_save;
+	argv[4] = snpname;
+	argv[5] = _strdup(to_string(bp).c_str());
+	argv[6] = _strdup(to_string(p).c_str());
+	argv[7] = _strdup(to_string(pC).c_str());
+
+	wchar_t **_argv = (wchar_t **)PyMem_Malloc(sizeof(wchar_t *) * argc);
+	for (int i = 0; i < argc; i++) {
+		wchar_t *arg = Py_DecodeLocale(argv[i], NULL);
+		_argv[i] = arg;
+	}
+	Py_SetProgramName(_argv[0]);
+
+	PySys_SetArgv(argc, _argv);
+
+	Py_Main(argc, _argv);
+
+	for (int i = 0; i < argc; i++) {
+		PyMem_RawFree(_argv[i]);
+		_argv[i] = nullptr;
+	}
+	_argv = nullptr;
+
+	return;
 }
 
 /*
@@ -904,8 +1020,14 @@ mdata::mdata(cond_analysis *ca1, cond_analysis *ca2)
 	// Match SNPs
 	for (it = ca1->snps_cond.begin(); it != ca1->snps_cond.end(); it++) {
 		vector<string>::iterator it2;
-		if ((it2 = find(ca2->snps_cond.begin(), ca2->snps_cond.end(), *it)) != ca2->snps_cond.end()) {
-			snp_map.insert(pair<size_t, size_t>(distance(ca1->snps_cond.begin(), it), distance(ca2->snps_cond.begin(), it2)));
+		if ((it2 = find(ca2->snps_cond.begin(), ca2->snps_cond.end(), *it)) != ca2->snps_cond.end()) 
+		{
+			size_t dist1 = distance(ca1->snps_cond.begin(), it),
+				dist2 = distance(ca2->snps_cond.begin(), it2);
+			// Some SNPs after the conditional analysis have 0 beta - need to figure out why that is
+			if (ca1->b_cond[dist1] == 0 || ca2->b_cond[dist2] == 0)
+				continue;
+			snp_map.insert(pair<size_t, size_t>(dist1, dist2));
 		}
 	}
 
@@ -919,6 +1041,9 @@ mdata::mdata(cond_analysis *ca1, cond_analysis *ca2)
 		pvals1.push_back(ca1->p_cond[itmap->first]);
 		mafs1.push_back(ca1->maf_cond[itmap->first]);
 		ns1.push_back(ca1->n_cond[itmap->first]);
+		if (ca1->get_coloc_type() == coloc_type::COLOC_CC) {
+			s1.push_back(ca1->s_cond[itmap->first]);
+		}
 
 		snps2.push_back(ca2->snps_cond[itmap->second]);
 		betas2.push_back(ca2->b_cond[itmap->second]);
@@ -926,9 +1051,15 @@ mdata::mdata(cond_analysis *ca1, cond_analysis *ca2)
 		pvals2.push_back(ca2->p_cond[itmap->second]);
 		mafs2.push_back(ca2->maf_cond[itmap->second]);
 		ns2.push_back(ca2->n_cond[itmap->second]);
+		if (ca2->get_coloc_type() == coloc_type::COLOC_CC) {
+			s2.push_back(ca2->s_cond[itmap->first]);
+		}
 
 		itmap++;
 	}
+
+	type1 = ca1->get_coloc_type();
+	type2 = ca2->get_coloc_type();
 }
 
 /*
@@ -946,8 +1077,13 @@ mdata::mdata(cond_analysis *ca, phenotype *ph)
 		vector<string>::iterator it;
 		string snp_to_find = pheno_snps[i];
 
-		if ((it = find(ca->snps_cond.begin(), ca->snps_cond.end(), snp_to_find)) != ca->snps_cond.end()) {
-			snp_map.insert(pair<size_t, size_t>(distance(ca->snps_cond.begin(), it), i));
+		if ((it = find(ca->snps_cond.begin(), ca->snps_cond.end(), snp_to_find)) != ca->snps_cond.end()) 
+		{
+			size_t dist = distance(ca->snps_cond.begin(), it);
+			// Some SNPs after the conditional analysis have 0 beta - need to figure out why that is
+			if (ca->b_cond[dist] == 0)
+				continue;
+			snp_map.insert(pair<size_t, size_t>(dist, i));
 		}
 	}
 
@@ -961,6 +1097,9 @@ mdata::mdata(cond_analysis *ca, phenotype *ph)
 		pvals1.push_back(ca->p_cond[itmap->first]);
 		mafs1.push_back(ca->maf_cond[itmap->first]);
 		ns1.push_back(ca->n_cond[itmap->first]);
+		if (ca->get_coloc_type() == coloc_type::COLOC_CC) {
+			s1.push_back(ca->s_cond[itmap->first]);
+		}
 
 		snps2.push_back(ph->snp_name[itmap->second]);
 		betas2.push_back(ph->beta[itmap->second]);
@@ -968,7 +1107,13 @@ mdata::mdata(cond_analysis *ca, phenotype *ph)
 		pvals2.push_back(ph->pval[itmap->second]);
 		mafs2.push_back(ph->freq[itmap->second]);
 		ns2.push_back(ph->n[itmap->second]);
+		if (ph->get_coloc_type() == coloc_type::COLOC_CC) {
+			s2.push_back(ph->n_case[itmap->second]);
+		}
 
 		itmap++;
 	}
+
+	type1 = ca->get_coloc_type();
+	type2 = ph->get_coloc_type();
 }
