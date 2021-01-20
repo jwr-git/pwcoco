@@ -966,13 +966,14 @@ void cond_analysis::sanitise_output(vector<size_t> &selected, vector<size_t> &re
 	ofile.close();
 
 #ifdef PYTHON_INC
-	//string plotname = a_out + "." + get_cond_name() + "." + ref->bim_snp_name[to_include[selected[0]]] + ".png";
-	//locus_plot(_strdup("../../python/locusplotter.py"), (char *)filename.c_str(), (char *)plotname.c_str(), (char *)(ref->bim_snp_name[to_include[selected[0]]].c_str()), ref->bim_bp[to_include[selected[0]]], ja_pval[selected[0]], 1e-25);
+	string plotname = a_out + "." + get_cond_name() + "." + ref->bim_snp_name[to_include[selected[0]]] + ".png";
+	locus_plot(_strdup("../../python/locusplotter.py"), (char *)filename.c_str(), (char *)plotname.c_str(), (char *)(ref->bim_snp_name[to_include[selected[0]]].c_str()), ref->bim_bp[to_include[selected[0]]], ja_pval[selected[0]], 1e-25);
 #endif
 }
 
 void cond_analysis::locus_plot(char *filename, char *datafile, char *to_save, char *snpname, double bp, double p, double pC)
 {
+#ifdef PYTHON_INC
 	int argc = 8;
 	char *argv[8];
 
@@ -1001,6 +1002,7 @@ void cond_analysis::locus_plot(char *filename, char *datafile, char *to_save, ch
 		_argv[i] = nullptr;
 	}
 	_argv = nullptr;
+#endif
 
 	return;
 }

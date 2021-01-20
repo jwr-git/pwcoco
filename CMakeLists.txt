@@ -37,11 +37,11 @@ if (OpenMP_CXX_FOUND)
 	target_link_libraries(pwcoco PUBLIC OpenMP::OpenMP_CXX)
 endif()
 
-find_package(PythonLibs) # for plotting
-if (Python_FOUND)
-	message (STATUS "Linking Python")
-	CFLAGS+=-PYTHON_INC
-	include_directories(${PYTHON_INCLUDE_DIRS})
-	target_link_libraries(pwcoco ${PYTHON_LIBRARIES})
-	add_compile_definitions(PYTHON_DIR="${CMAKE_CURRENT_SOURCE_DIR}/python/")
-endif()
+#find_package(PythonLibs) # for plotting
+#if (Python_FOUND)
+#	message (STATUS "Linking Python")
+#	add_compile_options(-PYTHON_INC)
+#	include_directories(${PYTHON_INCLUDE_DIRS})
+#	target_link_libraries(pwcoco ${PYTHON_LIBRARIES})
+#	add_compile_definitions(PYTHON_DIR="${CMAKE_CURRENT_SOURCE_DIR}/python/")
+#endif()
