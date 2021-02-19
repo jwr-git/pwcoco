@@ -142,7 +142,7 @@ void option(int option_num, char* option_str[])
 			}
 		}
 		else if (opt == "--out_cond") {
-			out_cond = stoi(option_str[++i]) ? true : false;
+			out_cond = true;
 		}
 		else if (opt == "--coloc_pp") {
 			p1 = stod(option_str[++i]);
