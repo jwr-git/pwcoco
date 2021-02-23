@@ -24,7 +24,7 @@ cmake ..
 make
 ```
 
-If building on the University of Bristol's HPC, load the module `languages/gcc-9.1.0` and ensure this is the **only** gcc module loaded. This should be all you need to build the program.
+If building on the University of Bristol's HPC, load the module `languages/gcc-9.1.0` and ensure this is the **only** gcc module loaded. Also, if you do not have a cmake module loaded, please load, for example, `tools/cmake-3.13.4`. This should be all you need to build the program.
 
 ### Windows
 
@@ -35,8 +35,8 @@ PWCoCo is a command-line program. Here is a list of accepted flags with a descri
 
 **Required**
 - `--bfile` - specifies the location of the reference dataset, normally from Plink, in the bed/bim/fam formats. Each of the bed/bim/fam files should have the same name and in the same directory.
-- `--phen1_file` - first phenotype file, file ending does not matter.
-- `--phen2_file` - second phenotype file, file ending does not matter.
+- `--sum_stats1` - first file containing summary statistics, file ending does not matter. Delimiter will be automatically determined between tab, comma or space.
+- `--sum_stats2` - second file containing summary statistics, file ending does not matter. Delimiter will be automatically determined between tab, comma or space.
 
 For acceptable formats for these files, please see below.
 
@@ -53,20 +53,22 @@ For acceptable formats for these files, please see below.
 - `--init_h4` - PWCoCo will run an initial colocalisation on the unconditioned dataset. If the H4 for this analysis reaches this threshold, the program will terminate early. Default is 80 (i.e. 80%). Set to 0 if you would like the program to always continue regardless of the initial colocalisation result.
 - `--out_cond` - would you like for the conditioned data to be saved as text files as well? Just including this flag will work (no extra argument following this flag is necessary).
 - `--coloc_pp` - specify the three prior probability Ps: the next **three** arguments must be the P values, default is 1e-4, 1e-4 and 1e-5.
+- `n1` - also `n2`, specify the sample size (or number of controls, see next flag) for the corresponding summary statistics. 
+- `n1_case` - also `n2_case`, specify the number of cases for the corresponding summary statistics. If this flag is given, the above flag becomes the number of controls.
 
 ## Example
 Example files will be provided soon so that a full analysis can be run. Instead, here is an example command to run the analysis:
 
-`pwcoco --bfile "../../1kg_plink/chr5" --phen1_file "tgfbi/TGFBI_exposure.txt" --phen2_file "tgfbi/TGFBI_outcome.txt" --out "tgfbi/res" --chr 5 --maf 0.01 --out_cond`
+`pwcoco --bfile "../../1kg_plink/chr5" --sum_stats1 "tgfbi/TGFBI_exposure.txt" --sum_stats2 "tgfbi/TGFBI_outcome.txt" --out "tgfbi/res" --chr 5 --maf 0.01 --out_cond`
 
 ### Input File Formats
 The bfile, or reference files, must be in Plink format. This means a .bed, .bim and .fam file in the same directory with the same name.
 
 Phenotype files do not require a certain file format. Instead, they _must_ follow this structure:
 
-`SNP	effect_allele	other_allele	effect_allele_freq	beta	se	p	n	{case}`
+`SNP	effect_allele	other_allele	effect_allele_freq	beta	se	p	{n	{case}}`
 
-Column names do not matter, only the order of the data. The `case` column is optional and should be given for phenotypes which are measured in case/control studies - where `n` will be the total sample size and `case` only case numbers. Including this column will cause the colocalisation to treat this as `cc` typed data (and not `quant` which only has `n`, total sample size, available).
+Column names do not matter, only the order of the data. The `n` and `case` columns are optional and should be given for phenotypes which are measured in case/control studies - where `n` will be the total sample size and `case` only case numbers. Including this column will cause the colocalisation to treat this as `cc` typed data (and not `quant` which only has `n`, total sample size, available). These may also be provided through the command line arguments.
 
 ### Output File Formats
 The program by default will output a file with the ending `.coloc` which contains the results for each of the colocalisation analyses run:
