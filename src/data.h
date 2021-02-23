@@ -27,7 +27,7 @@ class cond_analysis;
 
 class phenotype {
 public:
-	phenotype(string name);
+	phenotype(string name, double n, double n_case);
 	phenotype();
 
 	void read_phenofile(string filename);
@@ -72,12 +72,14 @@ public:
 private:
 	string pheno_name;
 	double pheno_variance; /// Estimated phenotypic variance from summary stats
+	double n_from_cmd; /// N passed from command line
+	double n_case_from_cmd; /// N_cases passed from command line
 
 	bool failed; // Phenotype reading failed in some way
 	coloc_type ctype; // Type of coloc to use: cc or quant
 };
 
-phenotype *init_pheno(string filename, string pheno_name);
+phenotype *init_pheno(string filename, string pheno_name, double n, double n_case);
 
 class mdata {
 public:

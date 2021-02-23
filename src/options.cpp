@@ -49,7 +49,8 @@ void option(int option_num, char* option_str[])
 	int i = 0;
 	double p_cutoff = 5e-8, collinear = 0.9, maf = 0.1, ld_window = 1.0e7,
 		freq_threshold = 0.2, init_h4 = 80, top_snp = 1e10,
-		p1 = 1e-4, p2 = 1e-4, p3 = 1e-5;
+		p1 = 1e-4, p2 = 1e-4, p3 = 1e-5,
+		n1 = 0.0, n2 = 0.0, n1_case = 0.0, n2_case = 0.0;
 	string bfile = "", bim_file = "", fam_file = "", bed_file = "",
 		phen1_file = "", phen2_file = "",
 		out = "pwcoco_out", log = "pwcoco_log", snplist = "",
@@ -74,14 +75,38 @@ void option(int option_num, char* option_str[])
 			bed_file = bfile + ".bed";
 
 		}
-		else if (opt == "--phen1_file") {
+		else if (opt == "--phen1_file" || opt == "--sum_stats1") {
 			phen1_file = option_str[++i];
 		}
-		else if (opt == "--phen2_file") {
+		else if (opt == "--phen2_file" || opt == "--sum_stats2") {
 			phen2_file = option_str[++i];
 		}
 
 		/* Optional */
+		else if (opt == "--n1") {
+			n1 = stod(option_str[++i]);
+			if (n1 <= 0) {
+				n1 = 0;
+			}
+		}
+		else if (opt == "--n2") {
+			n2 = stod(option_str[++i]);
+			if (n2 <= 0) {
+				n2 = 0;
+			}
+		}
+		else if (opt == "--n1_case") {
+			n1_case = stod(option_str[++i]);
+			if (n1_case <= 0) {
+				n1_case = 0;
+			}
+		}
+		else if (opt == "--n2_case") {
+			n2_case = stod(option_str[++i]);
+			if (n2_case <= 0) {
+				n2_case = 0;
+			}
+		}
 		else if (opt == "--log") {
 			log = option_str[++i];
 		}
@@ -225,8 +250,8 @@ void option(int option_num, char* option_str[])
 	init_h4 /= 100;
 
 	// First pass through - match data and perform coloc
-	phenotype *exposure = init_pheno(phen1_file, "exposure");
-	phenotype *outcome = init_pheno(phen2_file, "outcome");
+	phenotype *exposure = init_pheno(phen1_file, "exposure", n1, n1_case);
+	phenotype *outcome = init_pheno(phen2_file, "outcome", n2, n2_case);
 	if (exposure->has_failed() || outcome->has_failed()) {
 		spdlog::critical("Reading of either phenotype file failed; have these been moved or altered?");
 		return;

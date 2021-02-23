@@ -3,12 +3,14 @@
 /*
  * Phenotype constructor
  */
-phenotype::phenotype(string name)
+phenotype::phenotype(string name, double n, double n_case)
 {
 	pheno_name = name;
 	pheno_variance = 0;
 	failed = false;
 	ctype = coloc_type::COLOC_NONE;
+	n_from_cmd = n;
+	n_case_from_cmd = n_case;
 }
 
 /*
@@ -20,6 +22,8 @@ phenotype::phenotype()
 	pheno_variance = 0;
 	failed = false;
 	ctype = coloc_type::COLOC_NONE;
+	n_from_cmd = 0;
+	n_case_from_cmd = 0;
 }
 
 void phenotype::phenotype_clear()
@@ -28,6 +32,8 @@ void phenotype::phenotype_clear()
 	pheno_variance = 0;
 	failed = false;
 	ctype = coloc_type::COLOC_NONE;
+	n_from_cmd = 0;
+	n_case_from_cmd = 0;
 
 	vector<string>().swap(snp_name);
 	vector<string>().swap(allele1);
@@ -55,11 +61,10 @@ void phenotype::phenotype_clear()
  * names are flexible.
  * @ret void
  */
-phenotype *init_pheno(string filename, string pheno_name)
+phenotype *init_pheno(string filename, string pheno_name, double n, double n_case)
 {
-	phenotype *pheno = new phenotype(pheno_name);
+	phenotype *pheno = new phenotype(pheno_name, n, n_case);
 	pheno->read_phenofile(filename);
-
 	return pheno;
 }
 
@@ -80,7 +85,7 @@ void phenotype::read_phenofile(string filename)
 	map<string, int>::iterator iter;
 	int count = 0;
 	double h = 0.0, Vp = 0.0;
-	bool delim_found = false;
+	bool delim_found = false, n_warning = false;
 	char sep = '\t';
 
 	// Buffers
@@ -160,9 +165,25 @@ void phenotype::read_phenofile(string filename)
 				break;
 			case 7: // Eighth column contains N total
 				checkEntry(substr, &n_buf);
+				if (n_buf && n_from_cmd && !n_warning) {
+					n_warning = true;
+					spdlog::warn("N is given at command line (n = {}) but the file also contains these values. Using values from command line instead.", n_from_cmd);
+					n_buf = n_from_cmd;
+				}
+				else if (n_buf && n_from_cmd) {
+					n_buf = n_from_cmd;
+				}
 				break;
 			case 8: // Nineth column contains N of cases (optional)
 				checkEntry(substr, &nc_buf);
+				if (nc_buf && n_case_from_cmd && !n_warning) {
+					n_warning = true;
+					spdlog::warn("N or n_case is given at command line (n_case = {}) but the file also contains these values. Using values from command line instead.", n_case_from_cmd);
+					nc_buf = n_case_from_cmd;
+				}
+				else if (nc_buf && n_case_from_cmd) {
+					nc_buf = n_case_from_cmd;
+				}
 				ctype = coloc_type::COLOC_CC;
 				break;
 			}
@@ -171,6 +192,11 @@ void phenotype::read_phenofile(string filename)
 		if (se_buf == 0.0 || se_buf == 1.0
 			|| freq_buf == -1.0 || beta_buf == 1.0)
 			continue;
+
+		if (!n_buf && n_from_cmd)
+			n_buf = n_from_cmd;
+		if (!nc_buf && n_case_from_cmd)
+			nc_buf = n_case_from_cmd;
 
 		// Add SNPs
 		snp_name.push_back(snp_name_buf);

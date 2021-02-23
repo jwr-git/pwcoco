@@ -833,7 +833,7 @@ void cond_analysis::pw_conditional(int pos, bool out_cond, reference *ref)
 		maf_cond.push_back(0.5 * mu[to_include[j]]);
 		p_cond.push_back(ja_pval[j]);
 		n_cond.push_back(nD[j]);
-		s_cond.push_back(ja_n_cases[to_include[j]]);
+		s_cond.push_back(ja_n_cases[j]);
 	}
 
 	for (size_t i = 0; i < remain.size(); i++) {
@@ -844,7 +844,7 @@ void cond_analysis::pw_conditional(int pos, bool out_cond, reference *ref)
 		maf_cond.push_back(0.5 * mu[to_include[j]]);
 		p_cond.push_back(pC[i]);
 		n_cond.push_back(nD[i]);
-		s_cond.push_back(ja_n_cases[to_include[j]]);
+		s_cond.push_back(ja_n_cases[j]);
 	}
 	cond_passed = bC.size() > 0;
 }
