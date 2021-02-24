@@ -3,7 +3,7 @@
 /*
  * cond_analysis constructor
  */
-cond_analysis::cond_analysis(double p_cutoff, double collinear, double ld_window, string out, double top_snp, double freq_thres, string name)
+cond_analysis::cond_analysis(double p_cutoff, double collinear, double ld_window, string out, double top_snp, double freq_thres, string name, bool cond_ssize)
 {
 	cname = name;
 	a_out = out;
@@ -15,6 +15,7 @@ cond_analysis::cond_analysis(double p_cutoff, double collinear, double ld_window
 	a_top_snp = top_snp;
 
 	num_snps = 0;
+	cond_analysis::cond_ssize = cond_ssize;
 }
 
 /*
@@ -32,6 +33,7 @@ cond_analysis::cond_analysis()
 	a_top_snp = 1e10;
 
 	num_snps = 0;
+	cond_ssize = false;
 }
 
 /*
@@ -166,6 +168,8 @@ void cond_analysis::match_gwas_phenotype(phenotype *pheno, reference *ref)
 		spdlog::info("[{}] Total amount of SNPs matched from phenotype file with reference SNPs are: {}.", cname, to_include.size());
 	}
 
+	ctype = pheno->get_coloc_type();
+
 	// Resize and get ready for the conditional analysis
 	ja_snp_name.resize(to_include.size());
 	ja_freq.resize(to_include.size());
@@ -175,6 +179,9 @@ void cond_analysis::match_gwas_phenotype(phenotype *pheno, reference *ref)
 	ja_chisq.resize(to_include.size());
 	ja_N_outcome.resize(to_include.size()); // Unused?
 	ja_n_cases.resize(to_include.size());
+	nsample.resize(to_include.size());
+	if (ctype == coloc_type::COLOC_CC)
+		ncases.resize(to_include.size());
 
 	for (i = 0; i < to_include.size(); i++) {
 		ja_snp_name[i] = pheno->snp_name[idx[i]];
@@ -185,7 +192,11 @@ void cond_analysis::match_gwas_phenotype(phenotype *pheno, reference *ref)
 		ja_chisq[i] = (ja_beta[i] / ja_beta_se[i]) * (ja_beta[i] / ja_beta_se[i]);
 		ja_pval[i] = pchisq(ja_chisq[i], 1.0);
 		ja_N_outcome[i] = pheno->n[idx[i]];
-		ja_n_cases[i] = pheno->n_case[idx[i]];
+		nsample[i] = pheno->n[idx[i]];
+		if (ctype == coloc_type::COLOC_CC) {
+			ja_n_cases[i] = pheno->n_case[idx[i]];
+			ncases[i] = pheno->n_case[idx[i]];
+		}
 	}
 
 	string filename = a_out + "." + pheno->get_phenoname() + ".included";
@@ -824,6 +835,8 @@ void cond_analysis::pw_conditional(int pos, bool out_cond, reference *ref)
 	maf_cond.clear();
 	p_cond.clear();
 	n_cond.clear();
+	if (ctype == coloc_type::COLOC_CC)
+		s_cond.clear();
 
 	for (size_t i = 0; i < selected.size(); i++) {
 		size_t j = selected[i];
@@ -832,8 +845,16 @@ void cond_analysis::pw_conditional(int pos, bool out_cond, reference *ref)
 		se_cond.push_back(ja_beta_se[j]);
 		maf_cond.push_back(0.5 * mu[to_include[j]]);
 		p_cond.push_back(ja_pval[j]);
-		n_cond.push_back(nD[j]);
-		s_cond.push_back(ja_n_cases[j]);
+		if (cond_ssize) {
+			n_cond.push_back(nD[j]);
+			if (ctype == coloc_type::COLOC_CC)
+				s_cond.push_back(ja_n_cases[j]);
+		}
+		else {
+			n_cond.push_back(nsample[j]);
+			if (ctype == coloc_type::COLOC_CC)
+				s_cond.push_back(ncases[j]);
+		}
 	}
 
 	for (size_t i = 0; i < remain.size(); i++) {
@@ -843,8 +864,16 @@ void cond_analysis::pw_conditional(int pos, bool out_cond, reference *ref)
 		se_cond.push_back(bC_se[i]);
 		maf_cond.push_back(0.5 * mu[to_include[j]]);
 		p_cond.push_back(pC[i]);
-		n_cond.push_back(nD[i]);
-		s_cond.push_back(ja_n_cases[j]);
+		if (cond_ssize) {
+			n_cond.push_back(nD[j]);
+			if (ctype == coloc_type::COLOC_CC)
+				s_cond.push_back(ja_n_cases[j]);
+		}
+		else {
+			n_cond.push_back(nsample[j]);
+			if (ctype == coloc_type::COLOC_CC)
+				s_cond.push_back(ncases[j]);
+		}
 	}
 	cond_passed = bC.size() > 0;
 }

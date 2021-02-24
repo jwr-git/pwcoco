@@ -55,7 +55,7 @@ void option(int option_num, char* option_str[])
 		phen1_file = "", phen2_file = "",
 		out = "pwcoco_out", log = "pwcoco_log", snplist = "",
 		opt;
-	bool out_cond = false;
+	bool out_cond = false, cond_ssize = false;
 
 	/*
 	 * Read through option flags given by user.
@@ -178,6 +178,9 @@ void option(int option_num, char* option_str[])
 			p2 = (p2 > 1.0 ? 1.0 : p2 < 1e-50 ? 1e-50 : p2);
 			p3 = (p3 > 1.0 ? 1.0 : p3 < 1e-50 ? 1e-50 : p3);
 		}
+		else if (opt == "--cond_ssize") {
+			cond_ssize = true;
+		}
 	}
 
 	// First set up the logger
@@ -293,11 +296,11 @@ void option(int option_num, char* option_str[])
 	}
 
 	// Find each independent SNPs for both exposure and outcome data
-	cond_analysis *exp_analysis = new cond_analysis(p_cutoff, collinear, ld_window, out, top_snp, freq_threshold, "exposure");
+	cond_analysis *exp_analysis = new cond_analysis(p_cutoff, collinear, ld_window, out, top_snp, freq_threshold, "exposure", cond_ssize);
 	exp_analysis->init_conditional(exposure, ref);
 	exp_analysis->find_independent_snps(ref);
 
-	cond_analysis *out_analysis = new cond_analysis(p_cutoff, collinear, ld_window, out, top_snp, freq_threshold, "outcome");
+	cond_analysis *out_analysis = new cond_analysis(p_cutoff, collinear, ld_window, out, top_snp, freq_threshold, "outcome", cond_ssize);
 	out_analysis->init_conditional(outcome, ref);
 	out_analysis->find_independent_snps(ref);
 

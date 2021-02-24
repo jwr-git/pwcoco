@@ -48,7 +48,7 @@ enum cond_type {
 
 class cond_analysis {
 public:
-	cond_analysis(double p_cutoff, double collinear, double ld_window, string out, double top_snp, double freq_thres, string name);
+	cond_analysis(double p_cutoff, double collinear, double ld_window, string out, double top_snp, double freq_thres, string name, bool cond_ssize);
 	cond_analysis();
 
 	bool coloc_ready() {
@@ -133,6 +133,9 @@ private:
 	eigenVector msx; 
 	eigenVector msx_b; 
 	eigenVector nD;
+
+	bool cond_ssize; /// Whether to use conditional sample sizes or not
+	vector<double> nsample; /// Note that this is not conditioned like nD
 	vector<double> ncases; /// Note that this is not conditioned like nD
 
 	string cname;
