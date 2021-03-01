@@ -116,6 +116,10 @@ public:
 	int read_bimfile(string bimfile);
 	int read_famfile(string famfile);
 	int read_bedfile(string bedfile);
+#ifndef _MSC_VER
+	int read_bedfile_async(string bedfile);
+	void parse_bed_data(char *buf, size_t i, vector<int> read_individuals);
+#endif
 	void bim_clear();
 	void fam_clear();
 	void match_bim(vector<string> &names, vector<string> &names2);
@@ -177,4 +181,7 @@ private:
 	vector<unsigned short> fam_pheno; /// Phenotype value '1' = control, '2' = case, '-9'/'0'/non-numeric = missing data if case/control
 	size_t individuals; /// Number of individuals read from the .fam file
 	map<string, size_t> fam_map; /// Mapping between FIDs and IIDs
+
+	vector<vector<bool>>snp_1;
+	vector<vector<bool>>snp_2;
 };

@@ -748,6 +748,106 @@ void reference::get_read_individuals(vector<int> &read_individuals)
 	}
 }
 
+#ifndef _MSC_VER
+/* 
+ * Sub-function that work asynchronously to read the .bed buffer for faster
+ * reading.
+ * Only available for non-MS compilers due to VS not having up-to-date OpenMP.
+ * @param char *buf Buffer
+ * @param size_t snp_idx Index of the current SNP being read
+ * @param vector<int> read_individuals Which samples have been read and included.
+ * @ret void
+ */
+void reference::parse_bed_data(char *buf, size_t snp_idx, vector<int> read_individuals)
+{
+	size_t j, k, ind_idx;
+	int buf_count = 0, bytes = (int)ceil(individuals / 4.0);
+	bitset<8> b;
+
+	for (j = 0, ind_idx = 0; j < individuals && buf_count < bytes; ) {
+		b = buf[buf_count];
+		k = 0;
+		while (k < 7 && j < individuals) { // 11 for AA; 00 for BB
+			if (read_individuals[j] == 0)
+				k += 2;
+			else {
+				snp_2[snp_idx][ind_idx] = !b[k++];
+				snp_1[snp_idx][ind_idx] = !b[k++];
+				ind_idx++;
+			}
+			j++;
+		}
+		buf_count++;
+	}
+}
+
+/*
+ * Function that produces the .bed file into buffers and hands these off
+ * to the sub-function to process asynchronously.
+ * Only available for non-MS compilers due to VS not having up-to-date OpenMP.
+ * @param string bedfile Path to bedfile
+ * @ret int 0 if failed, 1 if successful
+ */
+
+int reference::read_bedfile_async(string bedfile)
+{
+	size_t i;
+	const size_t bim_size = to_include.size(),
+		fam_size = fam_ids_inc.size();
+	vector<int> read_individuals;
+
+	snp_1.resize(bim_size);
+	snp_2.resize(bim_size);
+	for (i = 0; i < bim_size; i++) {
+		snp_1[i].resize(fam_size);
+		snp_2[i].resize(fam_size);
+	}
+
+	// First three bytes are used for the file format and are not read
+	char ch[3];
+	fstream BIT(bedfile.c_str(), ios::in | ios::binary);	
+	if (!BIT) {
+		throw("Bed file cannot be opened for reading: {}.", bedfile);
+		return 0;
+	}
+	BIT.read(ch, 3); 
+
+	get_read_individuals(read_individuals);
+
+	// Producer/consumer async to quickly read and process the bed file
+	char* buf;
+	int bytes = (int)ceil(individuals / 4.0);
+#pragma omp parallel shared(read_individuals)
+#pragma omp for ordered
+	for (int ii = 0; ii < num_snps; ii++) {
+#pragma omp ordered
+		{
+			buf = new char[bytes];
+			BIT.read(buf, bytes);
+
+			// SNP in the matched SNP list?
+			vector<size_t>::iterator it;
+			if ((it = find(to_include.begin(), to_include.end(), ii)) != to_include.end())
+			{
+				size_t snp_idx = it - to_include.begin();
+#pragma omp task
+				parse_bed_data(buf, snp_idx, read_individuals);
+			}
+		}
+	}
+#pragma omp taskwait
+
+	BIT.clear();
+	BIT.close();
+
+	bed_snp_1.swap(snp_1);
+	bed_snp_2.swap(snp_2);
+
+	spdlog::info("Genotype data for {} individuals and {} SNPs read.", fam_size, bim_size);
+	return 1;
+}
+#endif
+
 /*
  * This function will read the allelic information
  * from the .bed file and use it to calculate allele
@@ -816,6 +916,7 @@ int reference::read_bedfile(string bedfile)
 				spdlog::critical("Cannot read the .bed file?");
 				return 0;
 			}
+			cout << i << " and " << bitset<8>(ch[0]) << " size " << BIT.gcount() << endl;
 
 			b = ch[0];
 			k = 0;
