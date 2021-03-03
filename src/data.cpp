@@ -683,6 +683,7 @@ int reference::read_bedfile(string bedfile)
 	char* buf;
 	int bytes = (int)ceil(individuals / 4.0);
 #ifndef _MSC_VER
+	spdlog::info("Reading .bed file using OpenMP. More threads should increase performance of this.");
 #pragma omp parallel shared(read_individuals)
 #pragma omp for ordered
 	for (int ii = 0; ii < num_snps; ii++) {
@@ -703,6 +704,7 @@ int reference::read_bedfile(string bedfile)
 	}
 #pragma omp taskwait
 #else
+	spdlog::info("Reading .bed file without using OpenMP. Using a compiler which supports OpenMP should increase performance of this.");
 	for (int ii = 0; ii < num_snps; ii++) {
 		{
 			buf = new char[bytes];
@@ -725,7 +727,7 @@ int reference::read_bedfile(string bedfile)
 	bed_snp_1.swap(snp_1);
 	bed_snp_2.swap(snp_2);
 
-	spdlog::info("Genotype data for {} individuals and {} SNPs read.", fam_size, bim_size);
+	spdlog::info("Finished reading .bed file. Genotype data for {} individuals and {} SNPs read.", fam_size, bim_size);
 	return 1;
 }
 
