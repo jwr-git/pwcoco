@@ -215,10 +215,10 @@ void option(int option_num, char* option_str[])
 		spdlog::critical("No .bim file found; a .bim file MUST be supplied!");
 		return;
 	}
-	else if (!file_exists(bim_file)) {
-		spdlog::critical(".bim file {} cannot be opened.", bim_file);
-		return;
-	}
+	//else if (!file_exists(bim_file)) {
+	//	spdlog::critical(".bim file {} cannot be opened.", bim_file);
+	//	return;
+	//}
 
 	// .fam file MUST be supplied
 	if (fam_file.compare("") == 0) {
@@ -286,15 +286,9 @@ void option(int option_num, char* option_str[])
 	}
 
 	// Finally bed-related
-#ifdef _MSC_VER
 	if (ref->read_bedfile(bed_file) == 0) {
 		return;
 	}
-#else
-	if (ref->read_bedfile_async(bed_file) == 0) {
-		return;
-	}
-#endif
 	ref->calculate_allele_freq();
 	if (maf > 0.0) {
 		if (ref->filter_snp_maf(maf) == 0)

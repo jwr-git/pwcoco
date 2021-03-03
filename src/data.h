@@ -116,10 +116,7 @@ public:
 	int read_bimfile(string bimfile);
 	int read_famfile(string famfile);
 	int read_bedfile(string bedfile);
-#ifndef _MSC_VER
-	int read_bedfile_async(string bedfile);
 	void parse_bed_data(char *buf, size_t i, vector<int> read_individuals);
-#endif
 	void bim_clear();
 	void fam_clear();
 	void match_bim(vector<string> &names, vector<string> &names2);
@@ -146,7 +143,7 @@ public:
 	map<string, size_t> snp_map; /// Maps rsID/SNP identifer to vector position
 	vector<string> bim_allele1; /// A1
 	vector<string> bim_allele2; /// A2
-	vector<int> bim_chr; /// Chromosome
+	vector<unsigned char> bim_chr; /// Chromosome
 	vector<int> bim_bp; /// BP position
 
 	// From .fam
