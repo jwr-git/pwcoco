@@ -628,6 +628,7 @@ void reference::parse_bed_data(char *buf, size_t snp_idx, vector<int> read_indiv
 	size_t j, k, ind_idx;
 	int buf_count = 0, bytes = (int)ceil(individuals / 4.0);
 	bitset<8> b;
+	int fcount = 0;
 
 	for (j = 0, ind_idx = 0; j < individuals && buf_count < bytes; ) {
 		b = buf[buf_count];
@@ -636,14 +637,26 @@ void reference::parse_bed_data(char *buf, size_t snp_idx, vector<int> read_indiv
 			if (read_individuals[j] == 0)
 				k += 2;
 			else {
-				snp_2[snp_idx][ind_idx] = !b[k++];
-				snp_1[snp_idx][ind_idx] = !b[k++];
+				double b2 = !b[k++] ? 1.0 : 0.0, // This order is important
+					b1 = !b[k++] ? 1.0 : 0.0;
+				snp_2[snp_idx][ind_idx] = (bool)b2;
+				snp_1[snp_idx][ind_idx] = (bool)b1;
+				if (!b1 || b2) {
+					double f = b1 + b2;
+					if (bim_allele2[snp_idx] == ref_A[snp_idx]) {
+						f = 2.0 - f;
+					}
+					mu[snp_idx] += f;
+					fcount += 1;
+				}
 				ind_idx++;
 			}
 			j++;
 		}
 		buf_count++;
 	}
+	if (fcount > 0)
+		mu[snp_idx] /= fcount;
 }
 
 /*
@@ -677,7 +690,9 @@ int reference::read_bedfile(string bedfile)
 	}
 	BIT.read(ch, 3); 
 
-	get_read_individuals(read_individuals);
+	get_read_individuals(read_individuals);	
+	mu.clear();
+	mu.resize(bim_size);
 
 	// Producer/consumer async to quickly read and process the bed file
 	char* buf;

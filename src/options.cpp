@@ -289,7 +289,7 @@ void option(int option_num, char* option_str[])
 	if (ref->read_bedfile(bed_file) == 0) {
 		return;
 	}
-	ref->calculate_allele_freq();
+	//ref->calculate_allele_freq();
 	if (maf > 0.0) {
 		if (ref->filter_snp_maf(maf) == 0)
 			return;
