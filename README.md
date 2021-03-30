@@ -53,8 +53,8 @@ For acceptable formats for these files, please see below.
 - `--init_h4` - PWCoCo will run an initial colocalisation on the unconditioned dataset. If the H4 for this analysis reaches this threshold, the program will terminate early. Default is 80 (i.e. 80%). Set to 0 if you would like the program to always continue regardless of the initial colocalisation result.
 - `--out_cond` - would you like for the conditioned data to be saved as text files as well? Just including this flag will work (no extra argument following this flag is necessary).
 - `--coloc_pp` - specify the three prior probability Ps: the next **three** arguments must be the P values, default is 1e-4, 1e-4 and 1e-5.
-- `n1` - also `n2`, specify the sample size (or number of controls, see next flag) for the corresponding summary statistics. 
-- `n1_case` - also `n2_case`, specify the number of cases for the corresponding summary statistics. If this flag is given, the above flag becomes the number of controls.
+- `--n1` - also `--n2`, specify the sample size (or number of controls, see next flag) for the corresponding summary statistics. 
+- `--n1_case` - also `--n2_case`, specify the number of cases for the corresponding summary statistics. If this flag is given, the above flag becomes the number of controls.
 
 ## Example
 Example files will be provided soon so that a full analysis can be run. Instead, here is an example command to run the analysis:
