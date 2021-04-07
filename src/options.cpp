@@ -186,22 +186,22 @@ void option(int option_num, char* option_str[])
 	// First set up the logger
 	vector<spdlog::sink_ptr> sinks;
 #ifdef _WIN32
-	sinks.push_back(make_shared<spdlog::sinks::wincolor_stdout_sink_st>());
+	sinks.push_back(make_shared<spdlog::sinks::wincolor_stdout_sink_mt>());
 #else
-	sinks.push_back(make_shared<spdlog::sinks::ansicolor_stdout_sink_st>());
+	sinks.push_back(make_shared<spdlog::sinks::ansicolor_stdout_sink_mt>());
 #endif
 	try {
-		sinks.push_back(make_shared<spdlog::sinks::basic_file_sink_st>(log + ".txt"));
+		sinks.push_back(make_shared<spdlog::sinks::basic_file_sink_mt>(log + ".txt"));
 		auto logger = make_shared<spdlog::logger>("pwcoco_log", begin(sinks), end(sinks)); 
 		spdlog::set_default_logger(logger);
 	}
 	catch (const spdlog::spdlog_ex &ex) {
 		cout << "Log setup failed: " << ex.what() << " - attempting to create default log \"pwcoco_log.txt\"." << endl;
-		sinks.push_back(make_shared<spdlog::sinks::basic_file_sink_st>("pwcoco_log.txt"));
+		sinks.push_back(make_shared<spdlog::sinks::basic_file_sink_mt>("pwcoco_log.txt"));
 		auto logger = make_shared<spdlog::logger>("pwcoco_log", begin(sinks), end(sinks));
 		spdlog::set_default_logger(logger);
 	}
-	spdlog::flush_every(std::chrono::seconds(10));
+	spdlog::flush_on(spdlog::level::info);
 
 	// Some analytics why not?
 	chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
@@ -270,7 +270,7 @@ void option(int option_num, char* option_str[])
 	}
 	delete(initial_coloc);
 
-	// Initialise the reference
+	// Initialise the reference for the bed/bim/fam file reading
 	reference *ref = new reference(out, chr);
 
 	// Bim-related first
@@ -295,14 +295,18 @@ void option(int option_num, char* option_str[])
 			return;
 	}
 
+	// Holder for the conditional matrices
+	conditional_dat *exp_cdat = new conditional_dat();
+	conditional_dat *out_cdat = new conditional_dat();
+
 	// Find each independent SNPs for both exposure and outcome data
 	cond_analysis *exp_analysis = new cond_analysis(p_cutoff, collinear, ld_window, out, top_snp, freq_threshold, "exposure", cond_ssize);
 	exp_analysis->init_conditional(exposure, ref);
-	exp_analysis->find_independent_snps(ref);
+	exp_analysis->find_independent_snps(exp_cdat, ref);
 
 	cond_analysis *out_analysis = new cond_analysis(p_cutoff, collinear, ld_window, out, top_snp, freq_threshold, "outcome", cond_ssize);
 	out_analysis->init_conditional(outcome, ref);
-	out_analysis->find_independent_snps(ref);
+	out_analysis->find_independent_snps(out_cdat, ref);
 
 	spdlog::info("There are {} selected SNPs in the exposure dataset and {} in the outcome dataset.", exp_analysis->get_num_ind(), out_analysis->get_num_ind());
 	spdlog::info("Performing {} conditional and colocalisation analyses.", (exp_analysis->get_num_ind() == 0 ? 1 : exp_analysis->get_num_ind()) * (out_analysis->get_num_ind() == 0 ? 1 : out_analysis->get_num_ind()));
@@ -332,8 +336,13 @@ void option(int option_num, char* option_str[])
 	for (int i = 0; i < exp_analysis->get_num_ind() + 1; i++)
 	{
 		if (exp_snp_name != "unconditioned" && i < exp_analysis->get_num_ind()) {
-			exp_analysis->pw_conditional(exp_analysis->get_num_ind() > 1 ? (int)i : -1, out_cond, ref); // Be careful not to remove the only independent SNP
+			// New conditional data struct for parallelisation
+			conditional_dat *par_exp_cdat = new conditional_dat(*exp_cdat);
+
+			exp_analysis->pw_conditional(exp_analysis->get_num_ind() > 1 ? i : -1, out_cond, par_exp_cdat, ref); // Be careful not to remove the only independent SNP
 			exp_snp_name = exp_analysis->get_ind_snp_name(i);
+
+			delete(par_exp_cdat);
 		}
 		else if ((exp_snp_name != "unconditioned" && i >= exp_analysis->get_num_ind())
 			|| (exp_snp_name == "unconditioned" && i > 0))
@@ -341,14 +350,18 @@ void option(int option_num, char* option_str[])
 			break;
 		}
 
-		for (int j = 0; j < out_analysis->get_num_ind(); j++)
+		for (int j = 0; j < out_analysis->get_num_ind() + 1; j++)
 		{
-			if (out_snp_name != "unconditioned" && i < out_analysis->get_num_ind()) {
-				out_analysis->pw_conditional(out_analysis->get_num_ind() > 1 ? (int)j : -1, out_cond, ref);
+			if (out_snp_name != "unconditioned" && j < out_analysis->get_num_ind()) {
+				conditional_dat *par_out_cdat = new conditional_dat(*out_cdat);
+
+				out_analysis->pw_conditional(out_analysis->get_num_ind() > 1 ? j : -1, out_cond, par_out_cdat, ref);
 				out_snp_name = out_analysis->get_ind_snp_name(j);
+
+				delete(par_out_cdat);
 			}
-			else if ((out_snp_name != "unconditioned" && i >= out_analysis->get_num_ind())
-				|| (out_snp_name == "unconditioned" && i > 0))
+			else if ((out_snp_name != "unconditioned" && j >= out_analysis->get_num_ind())
+				|| (out_snp_name == "unconditioned" && j > 0))
 			{
 				break;
 			}

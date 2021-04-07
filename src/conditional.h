@@ -46,6 +46,19 @@ enum cond_type {
 	CO_JOINT,
 };
 
+struct conditional_dat {
+	eigenSparseMat B;
+	eigenSparseMat B_i; // Identity matrix of B
+	eigenSparseMat B_N;
+	eigenSparseMat B_N_i; // Identity matrix of B_N
+	eigenVector D_N;
+	eigenSparseMat Z;
+	eigenSparseMat Z_N;
+
+	// Initialiser
+	conditional_dat() : B{ 0, 0 }, B_i{ 0, 0 }, B_N{ 0, 0 }, B_N_i{ 0, 0 }, D_N(0), Z{ 0, 0 }, Z_N{ 0, 0 } {}; // TODO All will be resized later which may be inefficient
+};
+
 class cond_analysis {
 public:
 	cond_analysis(double p_cutoff, double collinear, double ld_window, string out, double top_snp, double freq_thres, string name, bool cond_ssize);
@@ -78,8 +91,8 @@ public:
 	}
 
 	void init_conditional(phenotype *pheno, reference *ref);
-	void find_independent_snps(reference *ref);
-	void pw_conditional(int pos, bool out_cond, reference *ref);
+	void find_independent_snps(conditional_dat *cdat, reference *ref);
+	void pw_conditional(int pos, bool out_cond, conditional_dat *cdat, reference *ref);
 
 	// For coloc
 	vector<string> snps_cond; /// SNP names
@@ -93,23 +106,21 @@ public:
 private:
 	void match_gwas_phenotype(phenotype *pheno, reference *ref);
 
-	vector<size_t> read_snplist(string snplist, vector<size_t> &remain, reference *ref);
 	void makex_eigenVector(size_t j, eigenVector &x, bool resize, reference *ref);
-	bool init_b(const vector<size_t> &idx, reference *ref);
-	void init_z(const vector<size_t> &idx, reference *ref);
-	bool insert_B_Z(const vector<size_t> &idx, size_t pos, reference *ref);
-	void erase_B_and_Z(const vector<size_t> &idx, size_t erase);
-	void stepwise_select(vector<size_t> &selected, vector<size_t> &remain, eigenVector &bC, eigenVector &bC_se, eigenVector &pC, reference *ref);
+	bool init_b(const vector<size_t> &idx, conditional_dat *cdat, reference *ref);
+	void init_z(const vector<size_t> &idx, conditional_dat *cdat, reference *ref);
+	bool insert_B_Z(const vector<size_t> &idx, size_t pos, conditional_dat *cdat, reference *ref);
+	void erase_B_and_Z(const vector<size_t> &idx, size_t erase, conditional_dat *cdat);
+	void stepwise_select(vector<size_t> &selected, vector<size_t> &remain, conditional_dat *cdat, eigenVector &bC, eigenVector &bC_se, eigenVector &pC, reference *ref);
 
-	bool select_entry(vector<size_t> &selected, vector<size_t> &remain, eigenVector &bC, eigenVector &bC_se, eigenVector &pC, reference *ref);
-	void selected_stay(vector<size_t> &select, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, reference *ref);
-	void massoc_conditional(const vector<size_t> &selected, vector<size_t> &remain, eigenVector &bC, eigenVector &bC_se, eigenVector &pC, reference *ref);
-	void massoc_joint(const vector<size_t> &idx, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, reference *ref);
+	bool select_entry(vector<size_t> &selected, vector<size_t> &remain, conditional_dat *cdat, eigenVector &bC, eigenVector &bC_se, eigenVector &pC, reference *ref);
+	void selected_stay(vector<size_t> &select, conditional_dat *cdat, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, reference *ref);
+	void massoc_conditional(const vector<size_t> &selected, vector<size_t> &remain, conditional_dat *cdat, eigenVector &bC, eigenVector &bC_se, eigenVector &pC, reference *ref);
+	void massoc_joint(const vector<size_t> &idx, conditional_dat *cdat, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, reference *ref);
 
-	double massoc_calcu_Ve(const vector<size_t> &selected, eigenVector &bJ, eigenVector &b);
-	void LD_rval(const vector<size_t> &idx, eigenMatrix &rval);
+	void LD_rval(const vector<size_t> &idx, eigenMatrix &rval, conditional_dat *cdat);
 	void LD_rval(const vector<size_t> &v1, const vector<size_t> &v2, eigenMatrix &rval, reference *ref);
-	void sanitise_output(vector<size_t> &selected, vector<size_t> &remain, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, reference *ref);
+	void sanitise_output(vector<size_t> &selected, vector<size_t> &remain, conditional_dat *cdat, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, reference *ref);
 	void locus_plot(char *filename, char *datafile, char *to_save, char *snpname, double bp, double p, double pC);
 
 	double a_ld_window; // Distance in kb after which SNPs are considered to be in LD
@@ -156,22 +167,6 @@ private:
 	vector<size_t> remain_snps; // Remainder of SNPs after the stepwise selection process
 	bool cond_passed; // Ready for coloc after conditional analysis
 	vector<double> mu; // Calculated allele frequencies using fam data
-
-	eigenSparseMat B;
-	eigenSparseMat B_i; // Identity matrix of B
-	eigenSparseMat B_N;
-	eigenSparseMat B_N_i; // Identity matrix of B_N
-	eigenVector D_N;
-	eigenSparseMat Z;
-	eigenSparseMat Z_N;
-
-	eigenSparseMat B_master;
-	eigenSparseMat B_i_master; // Identity matrix of B
-	eigenSparseMat B_N_master;
-	eigenSparseMat B_N_i_master; // Identity matrix of B_N
-	eigenVector D_N_master;
-	eigenSparseMat Z_master;
-	eigenSparseMat Z_N_master;
 
 	// Coloc related
 	coloc_type ctype; // Type of coloc to use: cc or quant
