@@ -25,6 +25,8 @@ int main(int argc, char* argv[])
 	spdlog::info(" * '-----------'                                     `                             `                *");
 	spdlog::info(" ****************************************************************************************************");
 
+	spdlog::info("!! Remember to periodically 'git pull' in your PWCoCo directory to obtain the latest updates and bug fixes !!");
+
 	try {
 		option(argc, argv);
 	}
