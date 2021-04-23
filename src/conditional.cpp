@@ -1042,7 +1042,7 @@ mdata::mdata(cond_analysis *ca1, cond_analysis *ca2)
 		mafs2.push_back(ca2->maf_cond[itmap->second]);
 		ns2.push_back(ca2->n_cond[itmap->second]);
 		if (ca2->get_coloc_type() == coloc_type::COLOC_CC) {
-			s2.push_back(ca2->s_cond[itmap->first]);
+			s2.push_back(ca2->s_cond[itmap->second]);
 		}
 
 		itmap++;
