@@ -482,7 +482,12 @@ int reference::read_famfile(string famfile)
 	fam.close();
 
 	individuals = fam_fid.size();
-	spdlog::info("Successfully read {} from .fam file.", individuals);
+	spdlog::info("Successfully read {} individuals from .fam file.", individuals);
+
+	if (individuals < 4000) {
+		spdlog::warn("Sample size for the reference panel is below the recommended size of 4000!");
+		spdlog::warn("Continuing analysis, but please consider using a larger reference panel.");
+	}
 
 	pair_fam();
 	return 1;
@@ -662,7 +667,6 @@ void reference::parse_bed_data(char *buf, size_t snp_idx, vector<int> read_indiv
 /*
  * Function that produces the .bed file into buffers and hands these off
  * to the sub-function to process asynchronously.
- * Only available for non-MS compilers due to VS not having up-to-date OpenMP.
  * @param string bedfile Path to bedfile
  * @ret int 0 if failed, 1 if successful
  */
