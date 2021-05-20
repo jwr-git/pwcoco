@@ -241,10 +241,10 @@ int main(int argc, char* argv[])
 		spdlog::critical("No .fam file found; a .fam file MUST be supplied!");
 		return 0;
 	}
-	else if (!file_exists(fam_file)) {
-		spdlog::critical(".fam file {} cannot be opened.", fam_file);
-		return 0;
-	}
+	//else if (!file_exists(fam_file)) {
+	//	spdlog::critical(".fam file {} cannot be opened.", fam_file);
+	//	return 0;
+	//}
 
 	// Check if summary stats 1 is file or directory
 	if (phen1_file.compare("") == 0) {
