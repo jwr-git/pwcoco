@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 set (CMAKE_INCLUDE_CURRENT_DIR ON)
-set (CMAKE_CXX_STANDARD 11)
-set (CMAKE_C_STANDARD 11)
+set (CMAKE_CXX_STANDARD 17)
+set (CMAKE_C_STANDARD 17)
 
 # set the project name
 project(pwcoco VERSION 1.0 LANGUAGES CXX)

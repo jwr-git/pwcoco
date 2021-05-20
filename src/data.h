@@ -120,6 +120,7 @@ public:
 	void bim_clear();
 	void fam_clear();
 	void match_bim(vector<string> &names, vector<string> &names2);
+	void whole_bim();
 
 	int filter_snp_maf(double maf);
 	void sanitise_list();
@@ -134,6 +135,10 @@ public:
 
 	bool has_failed() {
 		return failed;
+	}
+
+	bool is_ready() {
+		return read;
 	}
 
 	// From .bim
@@ -158,6 +163,7 @@ private:
 	string a_out;
 	unsigned short a_chr;
 	bool failed; // Reference files failed to read in some way
+	bool read; // Reference files have already been read and cleaned, if true.
 
 	// From .bim file
 	vector<size_t> bim_og_pos; /// Original position in the .bim file

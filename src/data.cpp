@@ -258,6 +258,7 @@ reference::reference(string out, unsigned short chr)
 {
 	a_out = out;
 	a_chr = chr;
+	read = false;
 }
 
 /*
@@ -267,6 +268,7 @@ reference::reference()
 {
 	a_out = "";
 	a_chr = -1;
+	read = false;
 }
 
 void reference::reference_clear()
@@ -318,7 +320,7 @@ int reference::read_bimfile(string bimfile)
 		if (bim.eof())
 			break;
 
-		if (bim_chr_buf != a_chr) {
+		if (a_chr > 0 && bim_chr_buf != a_chr) {
 			i++;
 			continue;
 		}
@@ -396,6 +398,56 @@ void reference::match_bim(vector<string> &names, vector<string> &names2)
 	other_A = bim_allele2;
 
 	spdlog::info("Number of SNPs matched from .bim file to the phenotype data: {}.", num_snps_matched);
+}
+
+/*
+ * Performs some basic cleaning and prepares the whole bim file for inclusion into analysis
+
+ * @ret void
+ */
+void reference::whole_bim()
+{
+	// Temporary containers
+	vector<string> bim_snp_name_t = bim_snp_name,
+		bim_allele1_t,
+		bim_allele2_t;
+	vector<unsigned char> bim_chr_t;
+	vector<int> bim_bp_t;
+	//vector<double> bim_genet_dst_t;
+	vector<size_t> positions = bim_og_pos;
+
+	// Create map between SNP names and positions
+	// This will contain only unique SNPs inherently
+	map<string, size_t> m;
+	for (size_t i = 0; i < bim_snp_name_t.size(); ++i) {
+		m[bim_snp_name_t[i]] = positions[i];
+	}
+
+	// Move positions back into vector
+	for (map<string, size_t>::iterator it = m.begin(); it != m.end(); ++it) {
+		if (it->second == -1)
+			continue;
+
+		bim_snp_name_t.push_back(bim_snp_name[it->second]);
+		bim_allele1_t.push_back(bim_allele1[it->second]);
+		bim_allele2_t.push_back(bim_allele2[it->second]);
+		bim_chr_t.push_back(bim_chr[it->second]);
+		bim_bp_t.push_back(bim_bp[it->second]);
+		//bim_genet_dst_t.push_back(bim_genet_dst[it->second]);
+	}
+
+	bim_snp_name.swap(bim_snp_name_t);
+	bim_allele1.swap(bim_allele1_t);
+	bim_allele2.swap(bim_allele2_t);
+	bim_chr.swap(bim_chr_t);
+	bim_bp.swap(bim_bp_t);
+	//bim_genet_dst.swap(bim_genet_dst_t);
+
+	num_snps_matched = bim_chr.size();
+	ref_A = bim_allele1;
+	other_A = bim_allele2;
+
+	spdlog::info("Number of SNPs included from .bim file: {}.", num_snps_matched);
 }
 
 /*
@@ -565,6 +617,7 @@ int reference::filter_snp_maf(double maf)
 
 	//stable_sort(to_include.begin(), to_include.end());
 	spdlog::info("After filtering based on MAF, there are {} SNPs remaining in the analysis (amount removed: {}).", to_include.size(), prev_size - to_include.size());
+	read = true; // All reference-related cleaning has finished
 	return 1;
 }
 

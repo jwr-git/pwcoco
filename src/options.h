@@ -6,6 +6,7 @@
 #include <omp.h>
 #include <time.h>
 #include <thread>
+#include <filesystem>
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/basic_file_sink.h"
 
@@ -15,5 +16,8 @@
 #include "helper_funcs.h"
 
 using namespace std;
+namespace fs = std::filesystem;
 
-void option(int option_num, char* option_str[]);
+int initial_coloc(phenotype *exposure, phenotype *outcome, string out, double p1, double p2, double p3, double init_h4);
+int pwcoco_sub(phenotype *exposure, phenotype *outcome, reference *ref, double p_cutoff, double collinear, double ld_window, string out, double top_snp,
+	double freq_threshold, double cond_ssize, bool out_cond, double p1, double p2, double p3);
