@@ -31,7 +31,7 @@ int main(int argc, char* argv[])
 	 * Option reading
 	 */
 	unsigned short chr = 0;
-	int i = 0;
+	int i = 0, threads = 8;
 	double p_cutoff = 5e-8, collinear = 0.9, maf = 0.1, ld_window = 1.0e7,
 		freq_threshold = 0.2, init_h4 = 80, top_snp = 1e10,
 		p1 = 1e-4, p2 = 1e-4, p3 = 1e-5,
@@ -201,6 +201,11 @@ int main(int argc, char* argv[])
 
 			spdlog::info("--cond_ssize.");
 		}
+		else if (opt == "--threads") {
+			threads = stoi(argv[++i]);
+
+			spdlog::info("--threads {}.", threads);
+		}
 	}
 
 	// First set up the logger
@@ -258,6 +263,7 @@ int main(int argc, char* argv[])
 		if (fs::is_directory(path, ec)) {
 			data_folder = true;
 			spdlog::info("Summary stats 1 is treated as a folder.");
+			spdlog::warn("Passing folders as the summary statistics arguments is a beta feature and may be buggy. Please do not use this feature to inform on active analyses!");
 		}
 		else if (fs::is_regular_file(path, ec)) {
 			data_folder = false;
@@ -289,6 +295,12 @@ int main(int argc, char* argv[])
 			return 0;
 		}
 	}
+
+#if defined(_OPENMP)
+	omp_set_dynamic(0);
+	omp_set_num_threads(threads);
+	spdlog::info("OpenMP will attempt to use up to {} threads.", threads);
+#endif
 
 	// Set up for some common variables
 	reference *ref = new reference(out, chr); // Reference dataset
