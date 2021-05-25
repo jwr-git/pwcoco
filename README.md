@@ -74,9 +74,11 @@ There are two options and cases for the user as to how they provide their summar
 
 If only a few analyses are required to be run (< 100, for example) then it is more efficient to run PWCoCo separately for each of the file pairs (e.g. exposure vs outcome). In that case, using the `--sum_stats1` and `--sum_stats2` flags to point to the summary statistic files is better, as it allows the user to specify flags which will speed up the reference data loading (e.g. `--chr`). 
 
-#### Case 2 - Many analyses
+#### Case 2 - Many analyses - **BETA FEATURE**
 
 If PWCoCo will be analysing many different datasets (> 100, for example) then it may be more efficient to point the `--sum_stats` flags to two separate folder locations (e.g. one folder for exposure data, another for outcome data). In this case, PWCoCo will look for files _with the same names and file endings_ in the two folders and use these as the first and second summary statistic files. If this is done, PWCoCo will load the entire reference panel into memory (and therefore will require a large amount of RAM) to use between analyses.
+
+**This is a beta feature and may still be buggy. Please do not use this feature to run real analyses, and report any bugs you may experience.**
 
 #### Notes and Tips for Efficiency
 
@@ -84,6 +86,7 @@ By far and away the slowest part of the program is loading, cleaning and prepari
 - Consider splitting the reference panel into smaller regions more relevant for the analyses (using the `--chr` flag will reduce the memory footprint of the program but the entire .bim file will _still_ be required to be parsed. Therefore, splitting the reference data on chromosomes may actually increase performance).
 - Group similar analyses using a custom loop. Combining this with split reference panels will also greatly increase overall performance.
 - Consider using Plink to reduce the size of the reference panel to the region, or even SNPs, of interest. Plink will always be more efficient that PWCoCo at dealing with reference data in this way and so would increase performance for many anaylses.
+- Increase the amount of threads available for the OpenMP functions using the `--threads` flag.
 
 At the end of the day, PWCoCo is still built with performance and efficiency in mind and so will be more performant than other, similar methods; however, these steps should be in the mind of the user who wishes to conduct potentially thousands or more analyses to squeeze even more efficiency out of the tool.
 
