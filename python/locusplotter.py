@@ -52,12 +52,12 @@ class Phenotype:
         
         fig, ax = plt.subplots()
         
-        ax.scatter(self.df['bp'], self.df['logpC'], marker='.')
+        #ax.scatter(self.df['bp'], self.df['logpC'], marker='.')
                 
-        #ax = sns.scatterplot(data=self.df,
-        #                     x='bp', y='logpC',
-        #                     hue="ld_plot", 
-        #                     palette=sns.color_palette("ch:s=.75,rot=-.57"))
+        ax = sns.scatterplot(data=self.df,
+                             x='bp', y='logpC',
+                             hue="ld_plot", 
+                             palette=sns.color_palette("ch:s=.75,rot=-.57"))
         
         idx = self.df['logpC'].idxmax()
         ax.annotate(self.df['SNP'][idx],
@@ -75,6 +75,7 @@ if __name__ == "__main__":
     import sys
     import numpy as np
     import pandas as pd
+    import seaborn as sns
     import matplotlib.pyplot as plt
 
     if len(sys.argv) != 7:

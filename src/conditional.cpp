@@ -15,7 +15,7 @@ cond_analysis::cond_analysis(double p_cutoff, double collinear, double ld_window
 	a_top_snp = top_snp;
 
 	num_snps = 0;
-	cond_analysis::cond_ssize = cond_ssize;
+	cond_ssize = cond_ssize;
 }
 
 /*
@@ -209,7 +209,7 @@ void cond_analysis::match_gwas_phenotype(phenotype *pheno, reference *ref)
 	file.close();
 }
 
-void cond_analysis::stepwise_select(vector<size_t> &selected, vector<size_t> &remain, eigenVector &bC, eigenVector &bC_se, eigenVector &pC, reference *ref)
+void cond_analysis::stepwise_select(vector<size_t> &selected, vector<size_t> &remain, conditional_dat *cdat, eigenVector &bC, eigenVector &bC_se, eigenVector &pC, reference *ref)
 {
 	vector<double> p_temp, chisq;
 	eigenVector2Vector(ja_pval, p_temp);
@@ -235,8 +235,8 @@ void cond_analysis::stepwise_select(vector<size_t> &selected, vector<size_t> &re
 	}
 
 	while (!remain.empty()) {
-		if (select_entry(selected, remain, bC, bC_se, pC, ref)) {
-			selected_stay(selected, bC, bC_se, pC, ref);
+		if (select_entry(selected, remain, cdat, bC, bC_se, pC, ref)) {
+			selected_stay(selected, cdat, bC, bC_se, pC, ref);
 		}
 		else
 			break;
@@ -250,13 +250,13 @@ void cond_analysis::stepwise_select(vector<size_t> &selected, vector<size_t> &re
 
 	if (a_p_cutoff > 1e-3) {
 		spdlog::info("Performing backward elimination...");
-		selected_stay(selected, bC, bC_se, pC, ref);
+		selected_stay(selected, cdat, bC, bC_se, pC, ref);
 	}
 
 	spdlog::info("[{}] Finally, {} associated SNPs have been selected.", cname, selected.size());
 }
 
-bool cond_analysis::insert_B_Z(const vector<size_t> &idx, size_t pos, reference *ref)
+bool cond_analysis::insert_B_Z(const vector<size_t> &idx, size_t pos, conditional_dat *cdat, reference *ref)
 {
 	bool get_ins_col = false, get_ins_row = false;
 	size_t i = 0, j = 0, p,
@@ -264,22 +264,22 @@ bool cond_analysis::insert_B_Z(const vector<size_t> &idx, size_t pos, reference 
 		m = to_include.size();
 	double d_temp = 0.0;
 	vector<size_t> ix(idx);
-	eigenSparseMat B_temp(B), B_N_temp(B_N);
+	eigenSparseMat B_temp(cdat->B), B_N_temp(cdat->B_N);
 
 	ix.push_back(pos);
 	stable_sort(ix.begin(), ix.end());
 
-	B.resize(ix.size(), ix.size());
-	B_N.resize(ix.size(), ix.size());
+	cdat->B.resize(ix.size(), ix.size());
+	cdat->B_N.resize(ix.size(), ix.size());
 
 	p = find(ix.begin(), ix.end(), pos) - ix.begin();
 	eigenVector diagB(ix.size());
 	eigenVector x_i(n), x_j(n);
 	for (j = 0; j < ix.size(); j++) {
-		B.startVec(j);
-		B_N.startVec(j);
-		B.insertBack(j, j) = msx_b[ix[j]];
-		B_N.insertBack(j, j) = msx[ix[j]] * nD[ix[j]];
+		cdat->B.startVec(j);
+		cdat->B_N.startVec(j);
+		cdat->B.insertBack(j, j) = msx_b[ix[j]];
+		cdat->B_N.insertBack(j, j) = msx[ix[j]] * nD[ix[j]];
 
 		diagB[j] = msx_b[ix[j]];
 		if (pos == ix[j]) {
@@ -299,8 +299,8 @@ bool cond_analysis::insert_B_Z(const vector<size_t> &idx, size_t pos, reference 
 				{
 					makex_eigenVector(ix[i], x_i, false, ref);
 					d_temp = x_i.dot(x_j) / (double)n;
-					B.insertBack(i, j) = d_temp;
-					B_N.insertBack(i, j) = d_temp
+					cdat->B.insertBack(i, j) = d_temp;
+					cdat->B_N.insertBack(i, j) = d_temp
 											* min(nD[ix[i]], nD[ix[j]])
 											* sqrt(msx[ix[i]] * msx[ix[j]] / (msx_b[ix[i]] * msx_b[ix[j]]));
 				}
@@ -309,47 +309,47 @@ bool cond_analysis::insert_B_Z(const vector<size_t> &idx, size_t pos, reference 
 				size_t ins_row_val = get_ins_row ? 1 : 0,
 					ins_col_val = get_ins_col ? 1 : 0;
 				if (B_temp.coeff(i - ins_row_val, j - ins_col_val) != 0) {
-					B.insertBack(i, j) = B_temp.coeff(i - ins_row_val, j - ins_col_val);
-					B_N.insertBack(i, j) = B_N_temp.coeff(i - ins_row_val, j - ins_col_val);
+					cdat->B.insertBack(i, j) = B_temp.coeff(i - ins_row_val, j - ins_col_val);
+					cdat->B_N.insertBack(i, j) = B_N_temp.coeff(i - ins_row_val, j - ins_col_val);
 				}
 			}
 		}
 	}
-	B.finalize();
-	B_N.finalize();
+	cdat->B.finalize();
+	cdat->B_N.finalize();
 
-	SimplicialLDLT<eigenSparseMat> ldlt_B(B);
-	B_i.resize(ix.size(), ix.size());
-	B_i.setIdentity();
-	B_i = ldlt_B.solve(B_i).eval();
+	SimplicialLDLT<eigenSparseMat> ldlt_B(cdat->B);
+	cdat->B_i.resize(ix.size(), ix.size());
+	cdat->B_i.setIdentity();
+	cdat->B_i = ldlt_B.solve(cdat->B_i).eval();
 	if (ldlt_B.vectorD().minCoeff() < 0 || sqrt(ldlt_B.vectorD().maxCoeff() / ldlt_B.vectorD().minCoeff()) > 30
-		|| (1 - eigenVector::Constant(ix.size(), 1).array() / (diagB.array() * B_i.diagonal().array())).maxCoeff() > a_collinear)
+		|| (1 - eigenVector::Constant(ix.size(), 1).array() / (diagB.array() * cdat->B_i.diagonal().array())).maxCoeff() > a_collinear)
 	{
 		jma_snpnum_collinear++;
-		B = B_temp;
-		B_N = B_N_temp;
+		cdat->B = B_temp;
+		cdat->B_N = B_N_temp;
 		return false;
 	}
 
-	SimplicialLDLT<eigenSparseMat> ldlt_B_N(B_N);
-	B_N_i.resize(ix.size(), ix.size());
-	B_N_i.setIdentity();
-	B_N_i = ldlt_B_N.solve(B_N_i).eval();
-	D_N.resize(ix.size());
+	SimplicialLDLT<eigenSparseMat> ldlt_B_N(cdat->B_N);
+	cdat->B_N_i.resize(ix.size(), ix.size());
+	cdat->B_N_i.setIdentity();
+	cdat->B_N_i = ldlt_B_N.solve(cdat->B_N_i).eval();
+	cdat->D_N.resize(ix.size());
 	for (j = 0; j < ix.size(); j++) {
-		D_N[j] = msx[ix[j]] * nD[ix[j]];
+		cdat->D_N[j] = msx[ix[j]] * nD[ix[j]];
 	}
 
-	if (Z_N.cols() < 1)
+	if (cdat->Z_N.cols() < 1)
 		return true;
 
-	eigenSparseMat Z_temp(Z), Z_N_temp(Z_N);
-	Z.resize(ix.size(), m);
-	Z_N.resize(ix.size(), m);
+	eigenSparseMat Z_temp(cdat->Z), Z_N_temp(cdat->Z_N);
+	cdat->Z.resize(ix.size(), m);
+	cdat->Z_N.resize(ix.size(), m);
 
 	for (j = 0; j < m; j++) {
-		Z.startVec(j);
-		Z_N.startVec(j);
+		cdat->Z.startVec(j);
+		cdat->Z_N.startVec(j);
 
 		get_ins_row = false;
 		makex_eigenVector(j, x_j, false, ref);
@@ -362,8 +362,8 @@ bool cond_analysis::insert_B_Z(const vector<size_t> &idx, size_t pos, reference 
 				{
 					makex_eigenVector(ix[i], x_i, false, ref);
 					d_temp = x_j.dot(x_i) / (double)n;
-					Z.insertBack(i, j) = d_temp;
-					Z_N.insertBack(i, j) = d_temp
+					cdat->Z.insertBack(i, j) = d_temp;
+					cdat->Z_N.insertBack(i, j) = d_temp
 											* min(nD[ix[i]], nD[j])
 											* sqrt(msx[ix[i]] * msx[j] / (msx_b[ix[i]] * msx_b[j]));
 				}
@@ -372,30 +372,30 @@ bool cond_analysis::insert_B_Z(const vector<size_t> &idx, size_t pos, reference 
 			else {
 				size_t ins_row_val = get_ins_row ? 1 : 0;
 				if (Z_temp.coeff(i - ins_row_val, j) != 0) {
-					Z.insertBack(i, j) = Z_temp.coeff(i - ins_row_val, j);
-					Z_N.insertBack(i, j) = Z_N_temp.coeff(i - ins_row_val, j);
+					cdat->Z.insertBack(i, j) = Z_temp.coeff(i - ins_row_val, j);
+					cdat->Z_N.insertBack(i, j) = Z_N_temp.coeff(i - ins_row_val, j);
 				}
 			}
 		}
 	}
 
-	Z.finalize();
-	Z_N.finalize();
+	cdat->Z.finalize();
+	cdat->Z_N.finalize();
 	return true;
 }
 
-void cond_analysis::erase_B_and_Z(const vector<size_t> &idx, size_t erase)
+void cond_analysis::erase_B_and_Z(const vector<size_t> &idx, size_t erase, conditional_dat *cdat)
 {
 	bool get_ins_col = false, get_ins_row = false;
 	size_t i = 0, j = 0,
 		i_size = idx.size(),
 		pos = find(idx.begin(), idx.end(), erase) - idx.begin(),
 		m = to_include.size();
-	eigenSparseMat B_dense(B), B_N_dense(B_N);
+	eigenSparseMat B_dense(cdat->B), B_N_dense(cdat->B_N);
 
-	B.resize(i_size - 1, i_size - 1);
-	B_N.resize(i_size - 1, i_size - 1);
-	D_N.resize(i_size - 1);
+	cdat->B.resize(i_size - 1, i_size - 1);
+	cdat->B_N.resize(i_size - 1, i_size - 1);
+	cdat->D_N.resize(i_size - 1);
 
 	for (j = 0; j < i_size; j++) {
 		if (erase == idx[j]) {
@@ -403,9 +403,9 @@ void cond_analysis::erase_B_and_Z(const vector<size_t> &idx, size_t erase)
 			continue;
 		}
 
-		B.startVec(j - get_ins_col);
-		B_N.startVec(j - get_ins_col);
-		D_N[j - (get_ins_col ? 1 : 0)] = msx[idx[j]] * nD[idx[j]];
+		cdat->B.startVec(j - get_ins_col);
+		cdat->B_N.startVec(j - get_ins_col);
+		cdat->D_N[j - (get_ins_col ? 1 : 0)] = msx[idx[j]] * nD[idx[j]];
 		get_ins_row = get_ins_col;
 
 		for (i = j; i < i_size; i++) {
@@ -417,33 +417,33 @@ void cond_analysis::erase_B_and_Z(const vector<size_t> &idx, size_t erase)
 			if (B_dense.coeff(i, j) != 0) {
 				size_t ins_row_val = get_ins_row ? 1 : 0,
 					ins_col_val = get_ins_col ? 1 : 0;
-				B.insertBack(i - ins_row_val, j - ins_col_val) = B_dense.coeff(i, j);
-				B_N.insertBack(i - ins_row_val, j - ins_col_val) = B_N_dense.coeff(i, j);
+				cdat->B.insertBack(i - ins_row_val, j - ins_col_val) = B_dense.coeff(i, j);
+				cdat->B_N.insertBack(i - ins_row_val, j - ins_col_val) = B_N_dense.coeff(i, j);
 			}
 		}
 	}
-	B.finalize();
-	B_N.finalize();
+	cdat->B.finalize();
+	cdat->B_N.finalize();
 
-	if (Z_N.cols() < 1)
+	if (cdat->Z_N.cols() < 1)
 		return;
 
-	SimplicialLDLT<eigenSparseMat> ldlt_B(B);
-	B_i.resize(i_size - 1, i_size - 1);
-	B_i.setIdentity();
+	SimplicialLDLT<eigenSparseMat> ldlt_B(cdat->B);
+	cdat->B_i.resize(i_size - 1, i_size - 1);
+	cdat->B_i.setIdentity();
 
-	B_i = ldlt_B.solve(B_i).eval();
-	SimplicialLDLT<eigenSparseMat> ldlt_B_N(B_N);
-	B_N_i.resize(i_size - 1, i_size - 1);
-	B_N_i.setIdentity();
-	B_N_i = ldlt_B_N.solve(B_N_i).eval();
+	cdat->B_i = ldlt_B.solve(cdat->B_i).eval();
+	SimplicialLDLT<eigenSparseMat> ldlt_B_N(cdat->B_N);
+	cdat->B_N_i.resize(i_size - 1, i_size - 1);
+	cdat->B_N_i.setIdentity();
+	cdat->B_N_i = ldlt_B_N.solve(cdat->B_N_i).eval();
 
-	eigenSparseMat Z_temp(Z), Z_N_temp(Z_N);
-	Z.resize(i_size - 1, m);
-	Z_N.resize(i_size - 1, m);
+	eigenSparseMat Z_temp(cdat->Z), Z_N_temp(cdat->Z_N);
+	cdat->Z.resize(i_size - 1, m);
+	cdat->Z_N.resize(i_size - 1, m);
 	for (j = 0; j < m; j++) {
-		Z.startVec(j);
-		Z_N.startVec(j);
+		cdat->Z.startVec(j);
+		cdat->Z_N.startVec(j);
 		get_ins_row = false;
 		for (i = 0; i < i_size; i++) {
 			if (erase == idx[i]) {
@@ -453,21 +453,21 @@ void cond_analysis::erase_B_and_Z(const vector<size_t> &idx, size_t erase)
 
 			if (Z_temp.coeff(i, j) != 0) {
 				size_t ins_row_val = get_ins_row ? 1 : 0;
-				Z.insertBack(i - ins_row_val, j) = Z_temp.coeff(i, j);
-				Z_N.insertBack(i - ins_row_val, j) = Z_N_temp.coeff(i, j);
+				cdat->Z.insertBack(i - ins_row_val, j) = Z_temp.coeff(i, j);
+				cdat->Z_N.insertBack(i - ins_row_val, j) = Z_N_temp.coeff(i, j);
 			}
 		}
 	}
-	Z.finalize();
-	Z_N.finalize();
+	cdat->Z.finalize();
+	cdat->Z_N.finalize();
 }
 
-bool cond_analysis::select_entry(vector<size_t> &selected, vector<size_t> &remain, eigenVector &bC, eigenVector &bC_se, eigenVector &pC, reference *ref)
+bool cond_analysis::select_entry(vector<size_t> &selected, vector<size_t> &remain, conditional_dat *cdat, eigenVector &bC, eigenVector &bC_se, eigenVector &pC, reference *ref)
 {
 	size_t m = 0;
 	vector<double> pC_temp;
 
-	massoc_conditional(selected, remain, bC, bC_se, pC, ref);
+	massoc_conditional(selected, remain, cdat, bC, bC_se, pC, ref);
 
 	eigenVector2Vector(pC, pC_temp);
 
@@ -479,7 +479,7 @@ bool cond_analysis::select_entry(vector<size_t> &selected, vector<size_t> &remai
 			return false;
 		}
 
-		if (insert_B_Z(selected, remain[m], ref)) {
+		if (insert_B_Z(selected, remain[m], cdat, ref)) {
 			selected.push_back(remain[m]);
 			stable_sort(selected.begin(), selected.end());
 			remain.erase(remain.begin() + m);
@@ -491,10 +491,10 @@ bool cond_analysis::select_entry(vector<size_t> &selected, vector<size_t> &remai
 	}
 }
 
-void cond_analysis::selected_stay(vector<size_t> &select, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, reference *ref)
+void cond_analysis::selected_stay(vector<size_t> &select, conditional_dat *cdat, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, reference *ref)
 {
-	if (B_N.cols() < 1) {
-		if (!init_b(select, ref)) {
+	if (cdat->B_N.cols() < 1) {
+		if (!init_b(select, cdat, ref)) {
 			spdlog::critical("There is a collinearity problem with the given list of SNPs.");
 			return;
 		}
@@ -502,12 +502,12 @@ void cond_analysis::selected_stay(vector<size_t> &select, eigenVector &bJ, eigen
 
 	vector<double> pJ_temp;
 	while (!select.empty()) {
-		massoc_joint(select, bJ, bJ_se, pJ, ref);
+		massoc_joint(select, cdat, bJ, bJ_se, pJ, ref);
 		eigenVector2Vector(pJ, pJ_temp);
 		size_t m = max_element(pJ_temp.begin(), pJ_temp.end()) - pJ_temp.begin();
 		if (pJ[m] > a_p_cutoff) {
 			jma_snpnum_backward++;
-			erase_B_and_Z(select, select[m]);
+			erase_B_and_Z(select, select[m], cdat);
 			select.erase(select.begin() + m);
 			spdlog::info("[{}] Erasing SNP {}.", cname, ja_snp_name[m]);
 		}
@@ -517,28 +517,28 @@ void cond_analysis::selected_stay(vector<size_t> &select, eigenVector &bJ, eigen
 	}
 }
 
-void cond_analysis::massoc_conditional(const vector<size_t> &selected, vector<size_t> &remain, eigenVector &bC, eigenVector &bC_se, eigenVector &pC, reference *ref)
+void cond_analysis::massoc_conditional(const vector<size_t> &selected, vector<size_t> &remain, conditional_dat *cdat, eigenVector &bC, eigenVector &bC_se, eigenVector &pC, reference *ref)
 {
 	size_t i = 0, j = 0, n = selected.size(), m = remain.size();
 	double chisq = 0.0, B2 = 0.0;
 	eigenVector b(n), se(n);
 
-	if (B_N.cols() < 1) {
-		if (!init_b(selected, ref)) {
+	if (cdat->B_N.cols() < 1) {
+		if (!init_b(selected, cdat, ref)) {
 			spdlog::critical("There is a collinearity problem with the SNPs given.");
 			return;
 		}
 	}
 
-	if (Z_N.cols() < 1) {
-		init_z(selected, ref);
+	if (cdat->Z_N.cols() < 1) {
+		init_z(selected, cdat, ref);
 	}
 
 	for (i = 0; i < n; i++) {
 		b[i] = ja_beta[selected[i]];
 		se[i] = ja_beta_se[selected[i]];
 	}
-	eigenVector bJ1 = B_N_i * D_N.asDiagonal() * b;
+	eigenVector bJ1 = cdat->B_N_i * cdat->D_N.asDiagonal() * b;
 
 	eigenVector Z_Bi(n), Z_Bi_temp(n);
 	bC = eigenVector::Zero(m);
@@ -548,10 +548,10 @@ void cond_analysis::massoc_conditional(const vector<size_t> &selected, vector<si
 		j = remain[i];
 		B2 = msx[j] * nD[j];
 		if (!isFloatEqual(B2, 0.0)) {
-			Z_Bi = Z_N.col(j).transpose() * B_N_i;
-			Z_Bi_temp = Z.col(j).transpose() * B_i;
-			if (Z.col(j).dot(Z_Bi_temp) / msx_b[j] < a_collinear) {
-				bC[i] = ja_beta[j] - Z_Bi.cwiseProduct(D_N).dot(b) / B2;
+			Z_Bi = cdat->Z_N.col(j).transpose() * cdat->B_N_i;
+			Z_Bi_temp = cdat->Z.col(j).transpose() * cdat->B_i;
+			if (cdat->Z.col(j).dot(Z_Bi_temp) / msx_b[j] < a_collinear) {
+				bC[i] = ja_beta[j] - Z_Bi.cwiseProduct(cdat->D_N).dot(b) / B2;
 				bC_se[i] = 1.0 / B2; //(B2 - Z_N.col(j).dot(Z_Bi)) / (B2 * B2);
 			}
 		}
@@ -562,30 +562,6 @@ void cond_analysis::massoc_conditional(const vector<size_t> &selected, vector<si
 			pC[i] = pchisq(chisq * chisq, 1);
 		}
 	}
-}
-
-double cond_analysis::massoc_calcu_Ve(const vector<size_t> &selected, eigenVector &bJ, eigenVector &b)
-{
-	double Ve = 0.0, d_temp = 0.0;
-	size_t n = bJ.size();
-	vector<double> nD_temp(n);
-
-	for (size_t k = 0; k < n; k++) {
-		nD_temp[k] = nD[selected[k]];
-		Ve += D_N[k] * bJ[k] * b[k];
-	}
-
-	d_temp = v_calc_median(nD_temp);
-	if (d_temp - n < 1) {
-		spdlog::critical("DoF Error: Model is over-fitting due to lack of degree of freedom. Provide a more stringent P-value cutoff.");
-		return 0.0;
-	}
-	Ve = ((d_temp - 1) * jma_Vp - Ve) / (d_temp - n);
-	if (Ve <= 0.0) {
-		spdlog::critical("Residual Error: Residual variance is out of bounds meaning the model is over-fitting. Provide a more stringent P-value cutoff.");
-		return 0.0;
-	}
-	return Ve;
 }
 
 void cond_analysis::makex_eigenVector(size_t j, eigenVector &x, bool resize, reference *ref)
@@ -614,7 +590,7 @@ void cond_analysis::makex_eigenVector(size_t j, eigenVector &x, bool resize, ref
 	}
 }
 
-bool cond_analysis::init_b(const vector<size_t> &idx, reference *ref)
+bool cond_analysis::init_b(const vector<size_t> &idx, conditional_dat *cdat, reference *ref)
 {
 	size_t i = 0, j = 0, k = 0,
 		n = fam_ids_inc.size(),
@@ -624,17 +600,17 @@ bool cond_analysis::init_b(const vector<size_t> &idx, reference *ref)
 		x_i(n),
 		x_j(n);
 
-	B.resize(i_size, i_size);
-	B_N.resize(i_size, i_size);
-	D_N.resize(i_size);
+	cdat->B.resize(i_size, i_size);
+	cdat->B_N.resize(i_size, i_size);
+	cdat->D_N.resize(i_size);
 
 	for (i = 0; i < i_size; i++) {
-		D_N[i] = msx[idx[i]] * nD[idx[i]];
-		B.startVec(i);
-		B.insertBack(i, i) = msx_b[idx[i]];
+		cdat->D_N[i] = msx[idx[i]] * nD[idx[i]];
+		cdat->B.startVec(i);
+		cdat->B.insertBack(i, i) = msx_b[idx[i]];
 		
-		B_N.startVec(i);
-		B_N.insertBack(i, i) = D_N[i];
+		cdat->B_N.startVec(i);
+		cdat->B_N.insertBack(i, i) = cdat->D_N[i];
 
 		diagB[i] = msx_b[idx[i]];
 		makex_eigenVector(idx[i], x_i, false, ref);
@@ -647,34 +623,34 @@ bool cond_analysis::init_b(const vector<size_t> &idx, reference *ref)
 				makex_eigenVector(idx[j], x_j, false, ref);
 
 				d_temp = x_i.dot(x_j) / (double)n;
-				B.insertBack(j, i) = d_temp;
-				B_N.insertBack(j, i) = d_temp 
+				cdat->B.insertBack(j, i) = d_temp;
+				cdat->B_N.insertBack(j, i) = d_temp 
 									* min(nD[idx[i]], nD[idx[j]]) 
 									* sqrt(msx[idx[i]] * msx[idx[j]] / (msx_b[idx[i]] * msx_b[idx[j]]));
 			}
 		}
 	}
 
-	B.finalize();
-	B_N.finalize();
+	cdat->B.finalize();
+	cdat->B_N.finalize();
 
-	SimplicialLDLT<eigenSparseMat> ldlt_B(B);
+	SimplicialLDLT<eigenSparseMat> ldlt_B(cdat->B);
 	if (ldlt_B.vectorD().minCoeff() < 0 || sqrt(ldlt_B.vectorD().maxCoeff() / ldlt_B.vectorD().minCoeff()) > 30)
 		return false;
-	B_i.resize(i_size, i_size);
-	B_i.setIdentity();
-	B_i = ldlt_B.solve(B_i).eval();
-	if ((1 - eigenVector::Constant(i_size, 1).array() / (diagB.array() * B_i.diagonal().array())).maxCoeff() > a_collinear)
+	cdat->B_i.resize(i_size, i_size);
+	cdat->B_i.setIdentity();
+	cdat->B_i = ldlt_B.solve(cdat->B_i).eval();
+	if ((1 - eigenVector::Constant(i_size, 1).array() / (diagB.array() * cdat->B_i.diagonal().array())).maxCoeff() > a_collinear)
 		return false;
 
-	SimplicialLDLT<eigenSparseMat> ldlt_B_N(B_N);
-	B_N_i.resize(i_size, i_size);
-	B_N_i.setIdentity();
-	B_N_i = ldlt_B_N.solve(B_N_i).eval();
+	SimplicialLDLT<eigenSparseMat> ldlt_B_N(cdat->B_N);
+	cdat->B_N_i.resize(i_size, i_size);
+	cdat->B_N_i.setIdentity();
+	cdat->B_N_i = ldlt_B_N.solve(cdat->B_N_i).eval();
 	return true;
 }
 
-void cond_analysis::init_z(const vector<size_t> &idx, reference *ref)
+void cond_analysis::init_z(const vector<size_t> &idx, conditional_dat *cdat, reference *ref)
 {
 	size_t i = 0, j = 0,
 		n = fam_ids_inc.size(),
@@ -683,12 +659,12 @@ void cond_analysis::init_z(const vector<size_t> &idx, reference *ref)
 	double d_temp = 0.0;
 	eigenVector x_i(n), x_j(n);
 
-	Z.resize(i_size, m);
-	Z_N.resize(i_size, m);
+	cdat->Z.resize(i_size, m);
+	cdat->Z_N.resize(i_size, m);
 
 	for (j = 0; j < m; j++) {
-		Z.startVec(j);
-		Z_N.startVec(j);
+		cdat->Z.startVec(j);
+		cdat->Z_N.startVec(j);
 
 		makex_eigenVector(j, x_j, false, ref);
 		for (i = 0; i < i_size; i++) {
@@ -700,19 +676,19 @@ void cond_analysis::init_z(const vector<size_t> &idx, reference *ref)
 				makex_eigenVector(idx[i], x_i, false, ref);
 
 				d_temp = x_j.dot(x_i) / (double)n;
-				Z.insertBack(i, j) = d_temp;
-				Z_N.insertBack(i, j) = d_temp
+				cdat->Z.insertBack(i, j) = d_temp;
+				cdat->Z_N.insertBack(i, j) = d_temp
 										* min(nD[idx[i]], nD[j])
 										* sqrt(msx[idx[i]] * msx[j] / (msx_b[idx[i]] * msx_b[j]));
 			}
 		}
 	}
 
-	Z.finalize();
-	Z_N.finalize();
+	cdat->Z.finalize();
+	cdat->Z_N.finalize();
 }
 
-void cond_analysis::massoc_joint(const vector<size_t> &idx, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, reference *ref)
+void cond_analysis::massoc_joint(const vector<size_t> &idx, conditional_dat *cdat, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, reference *ref)
 {
 	size_t i = 0, n = idx.size();
 	double chisq = 0.0;
@@ -720,8 +696,8 @@ void cond_analysis::massoc_joint(const vector<size_t> &idx, eigenVector &bJ, eig
 	for (i = 0; i < n; i++)
 		b[i] = ja_beta[idx[i]];
 
-	if (B_N.cols() < 1) {
-		if (!init_b(idx, ref)) {
+	if (cdat->B_N.cols() < 1) {
+		if (!init_b(idx, cdat, ref)) {
 			spdlog::critical("There is a collinearity problem with the given list of SNPs.");
 			return;
 		}
@@ -730,8 +706,8 @@ void cond_analysis::massoc_joint(const vector<size_t> &idx, eigenVector &bJ, eig
 	bJ.resize(n);
 	bJ_se.resize(n);
 	pJ.resize(n);
-	bJ = B_N_i * D_N.asDiagonal() * b;
-	bJ_se = B_N_i.diagonal();
+	bJ = cdat->B_N_i * cdat->D_N.asDiagonal() * b;
+	bJ_se = cdat->B_N_i.diagonal();
 	pJ = eigenVector::Ones(n);
 	bJ_se *= jma_Ve;
 	for (i = 0; i < n; i++) {
@@ -751,7 +727,7 @@ void cond_analysis::massoc_joint(const vector<size_t> &idx, eigenVector &bJ, eig
  * Determine number of independent association signals within the region
  * without conducting a conditional analysis.
  */
-void cond_analysis::find_independent_snps(reference *ref)
+void cond_analysis::find_independent_snps(conditional_dat *cdat, reference *ref)
 {
 	vector<size_t> selected, remain;
 	eigenVector bC, bC_se, pC;
@@ -761,7 +737,7 @@ void cond_analysis::find_independent_snps(reference *ref)
 		a_top_snp = 1e10;
 
 	spdlog::info("[{}] Performing stepwise model selection on {} SNPs; p cutoff = {}, collinearity = {} assuming complete LE between SNPs more than {} Mb away).", cname, to_include.size(), a_p_cutoff, a_collinear, a_ld_window / 1e6);
-	stepwise_select(selected, remain, bC, bC_se, pC, ref);
+	stepwise_select(selected, remain, cdat, bC, bC_se, pC, ref);
 
 	if (selected.empty()) {
 		spdlog::warn("[{}] No SNPs have been selected by the step-wise selection algorithm. Using the unconditioned dataset.", cname);
@@ -778,54 +754,42 @@ void cond_analysis::find_independent_snps(reference *ref)
 	num_ind_snps = selected.size();
 	ind_snps = selected;
 	remain_snps = remain;
-
-	// Lazy - find a new way to do this
-	B_master = B;
-	B_i_master = B_i;
-	B_N_master = B_N;
-	B_N_i_master = B_N_i;
-	D_N_master = D_N;
-	Z_master = Z;
-	Z_N_master = Z_N;
 }
 
 /*
  * Run conditional analysis on marginal data for single association.
  */
-void cond_analysis::pw_conditional(int pos, bool out_cond, reference *ref)
+void cond_analysis::pw_conditional(int pos, bool out_cond, conditional_dat *cdat, reference *ref)
 {
 	vector<size_t> selected(ind_snps), remain(remain_snps);
 	eigenVector bC, bC_se, pC;
-
-	B = B_master;
-	B_i = B_i_master;
-	B_N = B_N_master;
-	B_N_i = B_N_i_master;
-	D_N = D_N_master;
-	Z = Z_master;
-	Z_N = Z_N_master;
+	size_t compare = selected[pos];
 
 	// Move SNPs into the remain category
 	if (pos >= 0) {
 		size_t i = 0;
-		while (selected.size() > 1) {
-			if (i == (size_t)pos) {
-				i++;
-				continue;
+		//while (selected.size() > 1) {
+		for (i = 0; i < selected.size(); i++) {
+			if (selected[i] == compare) {
+				remain.push_back(selected[i]);
+				erase_B_and_Z(selected, selected[i], cdat);
+				selected.erase(selected.begin() + i);
+				break;
 			}
-			remain.push_back(selected[i]);
-			erase_B_and_Z(selected, selected[i]);
-			selected.erase(selected.begin() + i);
+			//remain.push_back(selected[i]);
+			//erase_B_and_Z(selected, selected[i], cdat);
+			//selected.erase(selected.begin() + i);
+			//i = 0;
 		}
 
-		selected.clear();
-		selected.resize(1);
-		selected[0] = ind_snps[pos];
+		//selected.clear();
+		//selected.resize(1);
+		//selected[0] = ind_snps[pos];
 	}
 
-	massoc_conditional(selected, remain, bC, bC_se, pC, ref);
+	massoc_conditional(selected, remain, cdat, bC, bC_se, pC, ref);
 	if (out_cond) {
-		sanitise_output(selected, remain, bC, bC_se, pC, ref);
+		sanitise_output(selected, remain, cdat, bC, bC_se, pC, ref);
 	}
 
 	// Save in friendly format for mdata class
@@ -882,7 +846,7 @@ void cond_analysis::pw_conditional(int pos, bool out_cond, reference *ref)
  * Constructs LD matrix for a single vector of SNPs.
  * Will be NxN size, where N is number of SNPs in the vector.
  */
-void cond_analysis::LD_rval(const vector<size_t> &idx, eigenMatrix &rval)
+void cond_analysis::LD_rval(const vector<size_t> &idx, eigenMatrix &rval, conditional_dat *cdat)
 {
 	size_t i = 0, j = 0,
 		i_size = idx.size();
@@ -894,7 +858,7 @@ void cond_analysis::LD_rval(const vector<size_t> &idx, eigenMatrix &rval)
 	for (j = 0; j < i_size; j++) {
 		rval(j, j) = 1.0;
 		for (i = j + 1; i < i_size; i++) {
-			rval(i, j) = rval(j, i) = B.coeff(i, j) / sd[i] / sd[j];
+			rval(i, j) = rval(j, i) = cdat->B.coeff(i, j) / sd[i] / sd[j];
 		}
 	}
 }
@@ -951,7 +915,7 @@ void cond_analysis::LD_rval(const vector<size_t> &v1, const vector<size_t> &v2, 
 	}
 }
 
-void cond_analysis::sanitise_output(vector<size_t> &selected, vector<size_t> &remain, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, reference *ref)
+void cond_analysis::sanitise_output(vector<size_t> &selected, vector<size_t> &remain, conditional_dat *cdat, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, reference *ref)
 {
 	string filename;
 	size_t i = 0, j = 0, k;
@@ -1083,7 +1047,7 @@ mdata::mdata(cond_analysis *ca1, cond_analysis *ca2)
 		mafs2.push_back(ca2->maf_cond[itmap->second]);
 		ns2.push_back(ca2->n_cond[itmap->second]);
 		if (ca2->get_coloc_type() == coloc_type::COLOC_CC) {
-			s2.push_back(ca2->s_cond[itmap->first]);
+			s2.push_back(ca2->s_cond[itmap->second]);
 		}
 
 		itmap++;

@@ -18,3 +18,7 @@
 *.tlog
 *.lastbuildstate
 *.log
+
+*.vcxproj
+*.iobj
+*.ipdb

@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.10)
 set (CMAKE_INCLUDE_CURRENT_DIR ON)
-set (CMAKE_CXX_STANDARD 11)
-set (CMAKE_C_STANDARD 11)
+set (CMAKE_CXX_STANDARD 17)
+set (CMAKE_CXX_STANDARD_REQUIRED ON)
+set (CMAKE_CXX_EXTENSIONS OFF)
 
 # set the project name
 project(pwcoco VERSION 1.0 LANGUAGES CXX)
@@ -30,6 +31,8 @@ else ()
 endif()
 
 add_executable(pwcoco src/options.cpp src/coloc.cpp src/conditional.cpp src/data.cpp src/dcdflib.cpp src/helper_funcs.cpp)
+target_compile_features(pwcoco PRIVATE cxx_std_17)
+target_link_libraries(pwcoco PRIVATE stdc++fs)
 
 find_package(OpenMP)
 if (OpenMP_CXX_FOUND)

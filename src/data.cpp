@@ -258,6 +258,7 @@ reference::reference(string out, unsigned short chr)
 {
 	a_out = out;
 	a_chr = chr;
+	read = false;
 }
 
 /*
@@ -267,6 +268,7 @@ reference::reference()
 {
 	a_out = "";
 	a_chr = -1;
+	read = false;
 }
 
 void reference::reference_clear()
@@ -287,12 +289,12 @@ void reference::reference_clear()
 int reference::read_bimfile(string bimfile)
 {
 	string line;
-	int count = 0;
-	//size_t i;
+	size_t i = 0;
 	vector<string>::iterator iter;
 
 	// Temporary containers
-	int bim_chr_buf, bim_bp_buf;
+	unsigned short bim_chr_buf;
+	int bim_bp_buf;
 	double bim_genet_dst_buf;
 	string bim_snp_name_buf = "", bim_allele1_buf = "", bim_allele2_buf = "";
 
@@ -313,124 +315,28 @@ int reference::read_bimfile(string bimfile)
 	bim_clear();
 	
 	while (bim.good()) {
-		bim >> bim_chr_buf;
+		bim >> bim_chr_buf >> bim_snp_name_buf >> bim_genet_dst_buf >> bim_bp_buf >> bim_allele1_buf >> bim_allele2_buf;
+
 		if (bim.eof())
 			break;
+
+		if (a_chr > 0 && bim_chr_buf != a_chr) {
+			i++;
+			continue;
+		}
+
 		bim_chr.push_back(bim_chr_buf);
-
-		bim >> bim_snp_name_buf;
 		bim_snp_name.push_back(bim_snp_name_buf);
-
-		bim >> bim_genet_dst_buf;
-		bim_genet_dst.push_back(bim_genet_dst_buf);
-
-		bim >> bim_bp_buf;
+		//bim_genet_dst.push_back(bim_genet_dst_buf);
 		bim_bp.push_back(bim_bp_buf);
-		
-		bim >> bim_allele1_buf;
-		transform(bim_allele1_buf.begin(), bim_allele1_buf.end(), bim_allele1_buf.begin(), ::toupper);
+		transform(bim_allele1_buf.begin(), bim_allele1_buf.end(), bim_allele1_buf.begin(), ::toupper); // @TODO Is it quicker to just apply this to the entire vector after?
 		bim_allele1.push_back(bim_allele1_buf);
-
-		bim >> bim_allele2_buf;
 		transform(bim_allele2_buf.begin(), bim_allele2_buf.end(), bim_allele2_buf.begin(), ::toupper);
 		bim_allele2.push_back(bim_allele2_buf);
-
+		bim_og_pos.push_back(i++);
 	}
 	bim.close();
-	
-	/* Super slow
-	// Iterate through bim file and save data
-	while (getline(bim, line)) {
-		istringstream ss(line);
-		string substr;
-		bool control_break = false, control_continue = false;;
-		while (getline(ss, substr, '\t')) {
-			switch (count) {
-			case 0: // First column contains chromosome
-				try {
-					bim_chr_buf = stoi(substr);
 
-					if (bim_chr_buf != a_chr && a_chr != -1) {
-						control_continue = true;
-						break;
-					}
-				}
-				catch (...) {
-					ShowWarning("Chromosome is not integer - skipping rest of file.", a_verbose);
-					control_break = true;
-				}
-				break;
-			case 1: // Second column contains SNP name
-				bim_snp_name_buf = substr;
-				break;
-			case 2: // Third column contains genetic position in morgans
-				bim_genet_dst_buf = stod(substr);
-				break;
-			case 3: // Fourth column contains genetic position on base-pairs
-				bim_bp_buf = stoi(substr);
-				break;
-			case 4: // Fifth column contains allele 1
-				bim_allele1_buf = string2upper(substr);
-				break;
-			case 5: // Sixth column contains allele 2
-				bim_allele2_buf = string2upper(substr);
-				break;
-			}
-			count++;
-
-			if (control_break || control_continue)
-				break;
-		}
-
-		count = 0;
-		if (control_break)
-			break;
-		else if (control_continue)
-			continue;
-
-		// Check if this SNP matches with the phenotype SNP
-		iter = find(pheno->snp_name.begin(), pheno->snp_name.end(), bim_snp_name_buf);
-		if (iter == pheno->snp_name.end())
-			continue;
-		i = iter - pheno->snp_name.begin();
-		//if (find(pheno->matched_idx.begin(), pheno->matched_idx.end(), i) == pheno->matched_idx.end()) // Matched SNPs between the two datasets ONLY!
-		//	continue;
-
-		if (bim_allele1_buf != pheno->allele1[i]
-			&& bim_allele2_buf != pheno->allele1[i]
-			)
-		{
-			bad_snp.push_back(bim_snp_name_buf);
-			bad_allele1.push_back(bim_allele1_buf);
-			bad_allele2.push_back(bim_allele2_buf);
-			bad_refA.push_back(pheno->allele1[i]);
-			continue;
-		}
-
-		// Good SNP, add it to the vectors
-		bim_chr.push_back(bim_chr_buf);
-		bim_snp_name.push_back(bim_snp_name_buf);
-		bim_genet_dst.push_back(bim_genet_dst_buf);
-		bim_bp.push_back(bim_bp_buf);
-		bim_allele1.push_back(bim_allele1_buf);
-		bim_allele2.push_back(bim_allele2_buf);
-	}
-
-	bim.close();
-
-	// Report on reading
-	if (!bad_snp.empty()) {
-		string badname = a_out + ".badsnps";
-		ofstream badfile(badname.c_str());
-
-		badfile << "SNP\tA1\tA2\tRefA" << endl;
-		for (i = 0; i < bad_snp.size(); i++) {
-			badfile << bad_snp[i] << "\t" << bad_allele1[i] << "\t" << bad_allele2[i] << "\t" << bad_refA[i] << endl;
-		}
-		badfile.close();
-		cout << "Warning: a number of SNPs from the phenotype file could not be matched to the refrence GWAS data. These SNPs are saved in \"" + badname + "\"." << endl;
-	}
-	*/
 	num_snps = bim_chr.size();
 	ref_A = bim_allele1;
 	other_A = bim_allele2;
@@ -452,9 +358,9 @@ void reference::match_bim(vector<string> &names, vector<string> &names2)
 	vector<string> bim_snp_name_t,
 		bim_allele1_t,
 		bim_allele2_t;
-	vector<int> bim_chr_t,
-		bim_bp_t;
-	vector<double> bim_genet_dst_t;
+	vector<unsigned char> bim_chr_t;
+	vector<int> bim_bp_t;
+	//vector<double> bim_genet_dst_t;
 	vector<int> positions;
 	vector<string> snp_names = names;
 	
@@ -468,7 +374,7 @@ void reference::match_bim(vector<string> &names, vector<string> &names2)
 		vector<string>::iterator it;
 		if ((it = find(bim_snp_name.begin(), bim_snp_name.end(), snp_names[i])) == bim_snp_name.end())
 			continue;
-		positions[i] = (int)(it - bim_snp_name.begin());
+		positions[i] = bim_og_pos[it - bim_snp_name.begin()];
 	}
 	bim_og_pos = v_remove_nans(positions);
 
@@ -478,20 +384,70 @@ void reference::match_bim(vector<string> &names, vector<string> &names2)
 		bim_allele2_t.push_back(bim_allele2[p]);
 		bim_chr_t.push_back(bim_chr[p]);
 		bim_bp_t.push_back(bim_bp[p]);
-		bim_genet_dst_t.push_back(bim_genet_dst[p]);
+		//bim_genet_dst_t.push_back(bim_genet_dst[p]);
 	}
 	bim_snp_name.swap(bim_snp_name_t);
 	bim_allele1.swap(bim_allele1_t);
 	bim_allele2.swap(bim_allele2_t);
 	bim_chr.swap(bim_chr_t);
 	bim_bp.swap(bim_bp_t);
-	bim_genet_dst.swap(bim_genet_dst_t);
+	//bim_genet_dst.swap(bim_genet_dst_t);
 
 	num_snps_matched = bim_chr.size();
 	ref_A = bim_allele1;
 	other_A = bim_allele2;
 
 	spdlog::info("Number of SNPs matched from .bim file to the phenotype data: {}.", num_snps_matched);
+}
+
+/*
+ * Performs some basic cleaning and prepares the whole bim file for inclusion into analysis
+
+ * @ret void
+ */
+void reference::whole_bim()
+{
+	// Temporary containers
+	vector<string> bim_snp_name_t = bim_snp_name,
+		bim_allele1_t,
+		bim_allele2_t;
+	vector<unsigned char> bim_chr_t;
+	vector<int> bim_bp_t;
+	//vector<double> bim_genet_dst_t;
+	vector<size_t> positions = bim_og_pos;
+
+	// Create map between SNP names and positions
+	// This will contain only unique SNPs inherently
+	map<string, size_t> m;
+	for (size_t i = 0; i < bim_snp_name_t.size(); ++i) {
+		m[bim_snp_name_t[i]] = positions[i];
+	}
+
+	// Move positions back into vector
+	for (map<string, size_t>::iterator it = m.begin(); it != m.end(); ++it) {
+		if (it->second == -1)
+			continue;
+
+		bim_snp_name_t.push_back(bim_snp_name[it->second]);
+		bim_allele1_t.push_back(bim_allele1[it->second]);
+		bim_allele2_t.push_back(bim_allele2[it->second]);
+		bim_chr_t.push_back(bim_chr[it->second]);
+		bim_bp_t.push_back(bim_bp[it->second]);
+		//bim_genet_dst_t.push_back(bim_genet_dst[it->second]);
+	}
+
+	bim_snp_name.swap(bim_snp_name_t);
+	bim_allele1.swap(bim_allele1_t);
+	bim_allele2.swap(bim_allele2_t);
+	bim_chr.swap(bim_chr_t);
+	bim_bp.swap(bim_bp_t);
+	//bim_genet_dst.swap(bim_genet_dst_t);
+
+	num_snps_matched = bim_chr.size();
+	ref_A = bim_allele1;
+	other_A = bim_allele2;
+
+	spdlog::info("Number of SNPs included from .bim file: {}.", num_snps_matched);
 }
 
 /*
@@ -549,7 +505,8 @@ void reference::sanitise_list()
  */
 int reference::read_famfile(string famfile)
 {
-	string line, tstr;
+	string line, fid_buf, iid_buf, fa_buf, ma_buf;
+	unsigned short sex_buf, pheno_buf;
 	int count = 0;
 
 	// Prepare for bim reading
@@ -563,60 +520,26 @@ int reference::read_famfile(string famfile)
 	fam_clear();
 
 	while (fam) {
-		fam >> tstr;
-		if (fam.eof()) break;
-		fam_fid.push_back(tstr);
-		fam >> tstr;
-		fam_iid.push_back(tstr);
-		fam >> tstr;
-		fam_fa_id.push_back(tstr);
-		fam >> tstr;
-		fam_mo_id.push_back(tstr);
-		fam >> tstr;
-		fam_sex.push_back(atoi(tstr.c_str()));
-		fam >> tstr;
-		fam_pheno.push_back(atoi(tstr.c_str()));
-
+		fam >> fid_buf >> iid_buf >> fa_buf >> ma_buf >> sex_buf >> pheno_buf;
+		if (fam.eof()) 
+			break;
+		fam_fid.push_back(fid_buf);
+		fam_iid.push_back(iid_buf);
+		fam_fa_id.push_back(fa_buf);
+		fam_mo_id.push_back(ma_buf);
+		fam_sex.push_back(sex_buf);
+		fam_pheno.push_back(pheno_buf);
 	}
 
-	/* Slow
-	// Iterate through fam file and save data
-	while (getline(fam, line)) {
-		istringstream ss(line);
-		string substr;
-		while (getline(ss, substr, ' ')) {
-			switch (count) {
-			case 0: // First column contains family ID
-				fam_fid.push_back(substr);
-				break;
-			case 1: // Second column contains within-family ID
-				fam_iid.push_back(substr);
-				break;
-			case 2: // Third column contains ID of father
-				fam_fa_id.push_back(substr);
-				break;
-			case 3: // Fourth column contains ID of mother
-				fam_mo_id.push_back(substr);
-				break;
-			case 4: // Fifth column contains sex code
-				fam_sex.push_back((unsigned short)atoi(substr.c_str()));
-				break;
-			case 5: // Sixth column contains phenotype value
-				int temp = atoi(substr.c_str());
-				if (temp != 1 && temp != 2)
-					temp = 0;
-				fam_pheno.push_back((unsigned short)temp);
-				break;
-			}
-			count++;
-		}
-		count = 0;
-	}
-	*/
 	fam.close();
 
 	individuals = fam_fid.size();
-	spdlog::info("Successfully read {} from .fam file.", individuals);
+	spdlog::info("Successfully read {} individuals from .fam file.", individuals);
+
+	if (individuals < 4000) {
+		spdlog::warn("Sample size for the reference panel is below the recommended size of 4000!");
+		spdlog::warn("Continuing analysis, but please consider using a larger reference panel.");
+	}
 
 	pair_fam();
 	return 1;
@@ -694,6 +617,7 @@ int reference::filter_snp_maf(double maf)
 
 	//stable_sort(to_include.begin(), to_include.end());
 	spdlog::info("After filtering based on MAF, there are {} SNPs remaining in the analysis (amount removed: {}).", to_include.size(), prev_size - to_include.size());
+	read = true; // All reference-related cleaning has finished
 	return 1;
 }
 
@@ -748,7 +672,6 @@ void reference::get_read_individuals(vector<int> &read_individuals)
 	}
 }
 
-#ifndef _MSC_VER
 /* 
  * Sub-function that work asynchronously to read the .bed buffer for faster
  * reading.
@@ -763,6 +686,7 @@ void reference::parse_bed_data(char *buf, size_t snp_idx, vector<int> read_indiv
 	size_t j, k, ind_idx;
 	int buf_count = 0, bytes = (int)ceil(individuals / 4.0);
 	bitset<8> b;
+	int fcount = 0;
 
 	for (j = 0, ind_idx = 0; j < individuals && buf_count < bytes; ) {
 		b = buf[buf_count];
@@ -771,25 +695,36 @@ void reference::parse_bed_data(char *buf, size_t snp_idx, vector<int> read_indiv
 			if (read_individuals[j] == 0)
 				k += 2;
 			else {
-				snp_2[snp_idx][ind_idx] = !b[k++];
-				snp_1[snp_idx][ind_idx] = !b[k++];
+				double b2 = !b[k++] ? 1.0 : 0.0, // This order is important
+					b1 = !b[k++] ? 1.0 : 0.0;
+				snp_2[snp_idx][ind_idx] = (bool)b2;
+				snp_1[snp_idx][ind_idx] = (bool)b1;
+				if (!b1 || b2) {
+					double f = b1 + b2;
+					if (bim_allele2[snp_idx] == ref_A[snp_idx]) {
+						f = 2.0 - f;
+					}
+					mu[snp_idx] += f;
+					fcount += 1;
+				}
 				ind_idx++;
 			}
 			j++;
 		}
 		buf_count++;
 	}
+	if (fcount > 0)
+		mu[snp_idx] /= fcount;
 }
 
 /*
  * Function that produces the .bed file into buffers and hands these off
  * to the sub-function to process asynchronously.
- * Only available for non-MS compilers due to VS not having up-to-date OpenMP.
  * @param string bedfile Path to bedfile
  * @ret int 0 if failed, 1 if successful
  */
 
-int reference::read_bedfile_async(string bedfile)
+int reference::read_bedfile(string bedfile)
 {
 	size_t i;
 	const size_t bim_size = to_include.size(),
@@ -812,11 +747,15 @@ int reference::read_bedfile_async(string bedfile)
 	}
 	BIT.read(ch, 3); 
 
-	get_read_individuals(read_individuals);
+	get_read_individuals(read_individuals);	
+	mu.clear();
+	mu.resize(bim_size);
 
 	// Producer/consumer async to quickly read and process the bed file
 	char* buf;
 	int bytes = (int)ceil(individuals / 4.0);
+#ifndef _MSC_VER
+	spdlog::info("Reading .bed file using OpenMP. More threads should increase performance of this.");
 #pragma omp parallel shared(read_individuals)
 #pragma omp for ordered
 	for (int ii = 0; ii < num_snps; ii++) {
@@ -836,114 +775,31 @@ int reference::read_bedfile_async(string bedfile)
 		}
 	}
 #pragma omp taskwait
+#else
+	spdlog::info("Reading .bed file without using OpenMP. Using a compiler which supports OpenMP should increase performance of this.");
+	for (int ii = 0; ii < num_snps; ii++) {
+		{
+			buf = new char[bytes];
+			BIT.read(buf, bytes);
 
-	BIT.clear();
-	BIT.close();
-
-	bed_snp_1.swap(snp_1);
-	bed_snp_2.swap(snp_2);
-
-	spdlog::info("Genotype data for {} individuals and {} SNPs read.", fam_size, bim_size);
-	return 1;
-}
+			// SNP in the matched SNP list?
+			vector<size_t>::iterator it;
+			if ((it = find(to_include.begin(), to_include.end(), ii)) != to_include.end())
+			{
+				size_t snp_idx = it - to_include.begin();
+				parse_bed_data(buf, snp_idx, read_individuals);
+			}
+		}
+	}
 #endif
 
-/*
- * This function will read the allelic information
- * from the .bed file and use it to calculate allele
- * frequencies for the reference data.
- * @param string bedfile File name and path to .bed file
- * @ret int 0 if failed, 1 if successful
- */
-int reference::read_bedfile(string bedfile)
-{
-	size_t i, j, k,
-		snp_idx, ind_idx;
-	const size_t bim_size = to_include.size(),
-		fam_size = fam_ids_inc.size();
-	vector<int> read_individuals;
-	
-	char ch[1];
-	bitset<8> b;
-	fstream BIT(bedfile.c_str(), ios::in | ios::binary);
-
-	get_read_individuals(read_individuals);
-
-	if (!bim_size || !fam_size) {
-		spdlog::critical("No data from either .bim or .fam files to continue with.");
-		return 0;
-	}
-
-	if (!BIT) {
-		spdlog::critical("Bed file cannot be opened for reading: {}.", bedfile);
-		return 0;
-	}
-	spdlog::info("Reading data from bed file: {}.", bedfile);
-
-	vector<vector<bool>>snp_1(bim_size, vector<bool>(fam_size, false));
-	vector<vector<bool>>snp_2(bim_size, vector<bool>(fam_size, false));
-
-	//bed_snp_1.resize(bim_size);
-	//bed_snp_2.resize(bim_size);
-	//for (i = 0; i < bim_size; i++) {
-	//	bed_snp_1[i].resize(fam_size);
-	//	bed_snp_2[i].resize(fam_size);
-	//}
-
-	for (i = 0; i < 3; i++) {
-		BIT.read(ch, 1); // First three bytes are used for the file format and are not read
-	}
-
-	for (i = 0, snp_idx = 0; i < num_snps; i++) {
-		// 00: homozygote AA
-		// 11: homozygote BB
-		// 10: missing
-		// 01: heterozygous
-		
-		// SNP not found in the matched SNP list
-		vector<size_t>::iterator it;
-		if ((it = find(to_include.begin(), to_include.end(), i)) == to_include.end()) {
-			for (j = 0; j < individuals; j += 4)
-				BIT.read(ch, 1);
-			continue;
-		}
-
-		snp_idx = it - to_include.begin();
-		// SNP found - calculator allele frequency
-		for (j = 0, ind_idx = 0; j < individuals;) {
-			BIT.read(ch, 1);
-			if (!BIT) {
-				spdlog::critical("Cannot read the .bed file?");
-				return 0;
-			}
-			cout << i << " and " << bitset<8>(ch[0]) << " size " << BIT.gcount() << endl;
-
-			b = ch[0];
-			k = 0;
-			while (k < 7 && j < individuals) { // 11 for AA; 00 for BB
-				if (read_individuals[j] == 0)
-					k += 2;
-				else {
-					snp_2[snp_idx][ind_idx] = (!b[k++]);
-					snp_1[snp_idx][ind_idx] = (!b[k++]);
-					ind_idx++;
-				}
-				j++;
-			}
-		}
-
-		//if (snp_idx == bim_size)
-		//	break;
-		//snp_idx++;
-	}
-
 	BIT.clear();
 	BIT.close();
 
 	bed_snp_1.swap(snp_1);
 	bed_snp_2.swap(snp_2);
 
-	spdlog::info("Genotype data for {} individuals and {} SNPs read.", fam_size, bim_size);
+	spdlog::info("Finished reading .bed file. Genotype data for {} individuals and {} SNPs read.", fam_size, bim_size);
 	return 1;
 }
 
