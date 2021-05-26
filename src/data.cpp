@@ -803,9 +803,9 @@ int reference::read_bedfile(string bedfile)
 	int bytes = (int)ceil(individuals / 4.0);
 #ifndef _MSC_VER
 	spdlog::info("Reading .bed file using OpenMP. More threads should increase performance of this.");
-#pragma omp parallel shared(read_individuals)
+#pragma omp parallel shared(buf, read_individuals)
 #pragma omp for ordered
-	for (int ii = 0; ii < end_snps; ii++) {
+	for (size_t ii = 0; ii < end_snps; ii++) {
 #pragma omp ordered
 		{
 			buf = new char[bytes];
@@ -814,19 +814,19 @@ int reference::read_bedfile(string bedfile)
 			// If this is less than the first read SNP, then we can safely skip
 			if (ii < start_snps) {
 				delete[] buf;
-				continue;
 			}
-
-			// SNP in the matched SNP list?
-			vector<size_t>::iterator it;
-			if ((it = find(to_include_bim.begin(), to_include_bim.end(), ii)) != to_include_bim.end())
-			{
-				size_t snp_idx = it - to_include_bim.begin();
+			else {
+				// SNP in the matched SNP list?
+				vector<size_t>::iterator it;
+				if ((it = find(to_include_bim.begin(), to_include_bim.end(), ii)) != to_include_bim.end())
+				{
+					size_t snp_idx = it - to_include_bim.begin();
 #pragma omp task
-				parse_bed_data(buf, to_include[snp_idx], read_individuals);
-			}
+					parse_bed_data(buf, to_include[snp_idx], read_individuals);
+				}
 
-			delete[] buf;
+				delete[] buf;
+			}
 		}
 	}
 #pragma omp taskwait
