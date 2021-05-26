@@ -787,54 +787,55 @@ int reference::read_bedfile(string bedfile)
 
 	// First three bytes are used for the file format and are not read
 	char ch[3];
-	fstream BIT(bedfile.c_str(), ios::in | ios::binary);	
+	fstream BIT(bedfile.c_str(), ios::in | ios::binary);
 	if (!BIT) {
 		throw("Bed file cannot be opened for reading: {}.", bedfile);
 		return 0;
 	}
-	BIT.read(ch, 3); 
+	BIT.read(ch, 3);
 
-	get_read_individuals(read_individuals);	
+	get_read_individuals(read_individuals);
 	mu.clear();
 	mu.resize(bim_size);
 
 	// Producer/consumer async to quickly read and process the bed file
-	char *buf;
 	int bytes = (int)ceil(individuals / 4.0);
-#ifndef _MSC_VER
+#ifdef TEST
 	spdlog::info("Reading .bed file using OpenMP. More threads should increase performance of this.");
-#pragma omp parallel shared(buf, read_individuals)
+#pragma omp parallel shared(read_individuals)
+	{
 #pragma omp for ordered
-	for (size_t ii = 0; ii < end_snps; ii++) {
+		for (size_t ii = 0; ii < end_snps; ii++) {
 #pragma omp ordered
-		{
-			buf = new char[bytes];
-			BIT.read(buf, bytes);
+			{
+				char *buf = new char[bytes];
+				BIT.read(buf, bytes);
 
-			// If this is less than the first read SNP, then we can safely skip
-			if (ii < start_snps) {
-				delete[] buf;
-			}
-			else {
-				// SNP in the matched SNP list?
-				vector<size_t>::iterator it;
-				if ((it = find(to_include_bim.begin(), to_include_bim.end(), ii)) != to_include_bim.end())
-				{
-					size_t snp_idx = it - to_include_bim.begin();
-#pragma omp task
-					parse_bed_data(buf, to_include[snp_idx], read_individuals);
+				// If this is less than the first read SNP, then we can safely skip
+				if (ii < start_snps) {
+					delete[] buf;
 				}
+				else {
+					// SNP in the matched SNP list?
+					vector<size_t>::iterator it;
+					if ((it = find(to_include_bim.begin(), to_include_bim.end(), ii)) != to_include_bim.end())
+					{
+						size_t snp_idx = it - to_include_bim.begin();
+#pragma omp task
+						parse_bed_data(buf, to_include[snp_idx], read_individuals);
+					}
 
-				delete[] buf;
+					delete[] buf;
+				}
 			}
 		}
-	}
 #pragma omp taskwait
+	}
 #else
 	spdlog::info("Reading .bed file without using OpenMP. Using a compiler which supports OpenMP should increase performance of this.");
 	for (size_t ii = 0; ii < end_snps; ii++) 
 	{
-		buf = new char[bytes];
+		char *buf = new char[bytes];
 		BIT.read(buf, bytes);
 
 		// If this is less than the first read SNP, then we can safely skip
