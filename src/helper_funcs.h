@@ -28,6 +28,7 @@ double pchisq(double x, double df);
 double v_calc_median(const std::vector<double> &x);
 std::vector<std::size_t> v_sort_indices(const std::vector<std::string> &v);
 std::vector<std::size_t> v_remove_nans(std::vector<int> &v);
+std::vector<std::size_t> v_remove_nans(std::vector<size_t> &v);
 std::vector<std::string> v_merge_nodupes(std::vector<std::string> v1, std::vector<std::string> v2);
 void v_remove_dupes(std::vector<std::string> &v);
 void v_remove_dupes(std::vector<size_t> &v);
@@ -39,6 +40,7 @@ double lm(const std::vector<double> &x, const std::vector<double> &y);
 double lm_fixed(const std::vector<double> &x, const std::vector<double> &y);
 
 bool file_is_empty(std::ifstream &pFile);
+bool isNumber(std::string s);
 
 //template<typename KeyType, typename LeftValue, typename RightValue>
 //std::map<KeyType, std::pair<LeftValue, RightValue> > IntersectMaps(const std::map<KeyType, LeftValue> &left, const std::map<KeyType, RightValue> &right);

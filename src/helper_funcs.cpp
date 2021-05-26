@@ -99,6 +99,17 @@ std::vector<std::size_t> v_remove_nans(std::vector<int> &v)
 	return v_new;
 }
 
+std::vector<std::size_t> v_remove_nans(std::vector<size_t> &v)
+{
+	std::vector<size_t>v_new;
+	for (auto &e : v) {
+		if (e == -1)
+			continue;
+		v_new.push_back(e);
+	}
+	return v_new;
+}
+
 std::vector<std::string> v_merge_nodupes(std::vector<std::string> v1, std::vector<std::string> v2)
 {
 	std::vector<std::string> temp(v1);
@@ -202,4 +213,9 @@ std::string string2upper(const std::string &str)
 bool file_is_empty(std::ifstream &pFile)
 {
 	return pFile.peek() == std::ifstream::traits_type::eof();
+}
+
+bool isNumber(std::string s)
+{
+	return std::all_of(s.begin(), s.end(), ::isdigit);
 }

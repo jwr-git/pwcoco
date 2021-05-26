@@ -90,7 +90,7 @@ void phenotype::read_phenofile(string filename)
 
 	// Buffers
 	string snp_name_buf, allele1_buf, allele2_buf;
-	double freq_buf = -1.0, beta_buf, se_buf = 0.0, pval_buf, n_buf, nc_buf = 0.0, s;
+	double freq_buf = -1.0, beta_buf, se_buf = 0.0, pval_buf, n_buf = 0.0, nc_buf = 0.0, s;
 
 	ifstream pfile(filename.c_str());
 	if (!pfile) {
@@ -109,7 +109,7 @@ void phenotype::read_phenofile(string filename)
 
 		// Replace buffers
 		snp_name_buf = allele1_buf = allele2_buf = "";
-		se_buf = 0.0; 
+		beta_buf = se_buf = pval_buf = n_buf = nc_buf = 0.0; 
 		freq_buf = -1;
 
 		// Check delimiter
@@ -192,11 +192,6 @@ void phenotype::read_phenofile(string filename)
 		if (se_buf == 0.0 || se_buf == 1.0
 			|| freq_buf == -1.0 || beta_buf == 1.0)
 			continue;
-
-		if (!n_buf && n_from_cmd)
-			n_buf = n_from_cmd;
-		if (!nc_buf && n_case_from_cmd)
-			nc_buf = n_case_from_cmd;
 
 		// Add SNPs
 		snp_name.push_back(snp_name_buf);
@@ -289,11 +284,11 @@ void reference::reference_clear()
 int reference::read_bimfile(string bimfile)
 {
 	string line;
-	size_t i = 0;
+	size_t i = 0, pos = 0;
 	vector<string>::iterator iter;
 
 	// Temporary containers
-	unsigned short bim_chr_buf;
+	string bim_chr_buf = "";
 	int bim_bp_buf;
 	double bim_genet_dst_buf;
 	string bim_snp_name_buf = "", bim_allele1_buf = "", bim_allele2_buf = "";
@@ -303,6 +298,9 @@ int reference::read_bimfile(string bimfile)
 	vector<string> bad_allele1;
 	vector<string> bad_allele2;
 	vector<string> bad_refA;
+
+	// Markers for start/end of reading
+	start_snps = end_snps = -1;
 
 	// Prepare for bim reading
 	ifstream bim(bimfile.c_str());
@@ -320,12 +318,15 @@ int reference::read_bimfile(string bimfile)
 		if (bim.eof())
 			break;
 
-		if (a_chr > 0 && bim_chr_buf != a_chr) {
-			i++;
+		if (!isNumber(bim_chr_buf) || (a_chr > 0 && stoi(bim_chr_buf) != a_chr)) {
+			pos++;
 			continue;
 		}
 
-		bim_chr.push_back(bim_chr_buf);
+		if (start_snps == -1)
+			start_snps = pos;
+
+		bim_chr.push_back(stoi(bim_chr_buf));
 		bim_snp_name.push_back(bim_snp_name_buf);
 		//bim_genet_dst.push_back(bim_genet_dst_buf);
 		bim_bp.push_back(bim_bp_buf);
@@ -333,11 +334,16 @@ int reference::read_bimfile(string bimfile)
 		bim_allele1.push_back(bim_allele1_buf);
 		transform(bim_allele2_buf.begin(), bim_allele2_buf.end(), bim_allele2_buf.begin(), ::toupper);
 		bim_allele2.push_back(bim_allele2_buf);
-		bim_og_pos.push_back(i++);
+		
+		bim_read_pos.push_back(i++); // When was this SNP read
+		bim_og_pos.push_back(pos); // Its position in the .bim, etc. files
+
+		end_snps = pos;
+		pos++;
 	}
 	bim.close();
 
-	num_snps = bim_chr.size();
+	num_snps = i;
 	ref_A = bim_allele1;
 	other_A = bim_allele2;
 	
@@ -361,30 +367,44 @@ void reference::match_bim(vector<string> &names, vector<string> &names2)
 	vector<unsigned char> bim_chr_t;
 	vector<int> bim_bp_t;
 	//vector<double> bim_genet_dst_t;
-	vector<int> positions;
+	vector<int> r_positions, // Read positions in bim vectors
+		og_positions; // Original position in the bim file
+	vector<size_t> r_positions_t, og_positions_t;
 	vector<string> snp_names = names;
 	
 	copy(names2.begin(), names2.end(), back_inserter(snp_names));
 	v_remove_dupes(snp_names);
 
-	positions.resize(snp_names.size());
-	fill(positions.begin(), positions.end(), -1);
+	r_positions.resize(snp_names.size());
+	og_positions.resize(snp_names.size());
+	fill(r_positions.begin(), r_positions.end(), -1);
+	fill(og_positions.begin(), og_positions.end(), -1);
 #pragma omp parallel for
 	for (int i = 0; i < snp_names.size(); ++i) {
 		vector<string>::iterator it;
 		if ((it = find(bim_snp_name.begin(), bim_snp_name.end(), snp_names[i])) == bim_snp_name.end())
 			continue;
-		positions[i] = bim_og_pos[it - bim_snp_name.begin()];
+		r_positions[i] = it - bim_snp_name.begin();
+		og_positions[i] = bim_og_pos[it - bim_snp_name.begin()];
 	}
-	bim_og_pos = v_remove_nans(positions);
 
-	for (auto &p : bim_og_pos) {
-		bim_snp_name_t.push_back(bim_snp_name[p]);
-		bim_allele1_t.push_back(bim_allele1[p]);
-		bim_allele2_t.push_back(bim_allele2[p]);
-		bim_chr_t.push_back(bim_chr[p]);
-		bim_bp_t.push_back(bim_bp[p]);
-		//bim_genet_dst_t.push_back(bim_genet_dst[p]);
+	// Remove from map if -1
+	for (size_t j = 0; j < r_positions.size(); j++) {
+		if (r_positions[j] != -1) {
+			r_positions_t.push_back(r_positions[j]);
+			og_positions_t.push_back(og_positions[j]);
+		}
+	}
+	bim_read_pos = r_positions_t;
+	bim_og_pos = og_positions_t;
+
+	for (size_t j = 0; j < bim_read_pos.size(); j++) {
+		bim_snp_name_t.push_back(bim_snp_name[bim_read_pos[j]]);
+		bim_allele1_t.push_back(bim_allele1[bim_read_pos[j]]);
+		bim_allele2_t.push_back(bim_allele2[bim_read_pos[j]]);
+		bim_chr_t.push_back(bim_chr[bim_read_pos[j]]);
+		bim_bp_t.push_back(bim_bp[bim_read_pos[j]]);
+		//bim_genet_dst_t.push_back(bim_genet_dst[bim_read_pos[j]]);
 	}
 	bim_snp_name.swap(bim_snp_name_t);
 	bim_allele1.swap(bim_allele1_t);
@@ -407,6 +427,7 @@ void reference::match_bim(vector<string> &names, vector<string> &names2)
  */
 void reference::whole_bim()
 {
+#ifdef TEST
 	// Temporary containers
 	vector<string> bim_snp_name_t = bim_snp_name,
 		bim_allele1_t,
@@ -448,6 +469,9 @@ void reference::whole_bim()
 	other_A = bim_allele2;
 
 	spdlog::info("Number of SNPs included from .bim file: {}.", num_snps_matched);
+#else
+	spdlog::critical("This feature is still undergoing testing.");
+#endif
 }
 
 /*
@@ -473,11 +497,14 @@ void reference::sanitise_list()
 	size_t i;
 	to_include.clear();
 	to_include.resize(num_snps_matched);
+	to_include_bim.clear();
+	to_include_bim.resize(num_snps_matched);
 	snp_map.clear();
 
 	for (i = 0; i < num_snps_matched; ++i) {
 		stringstream ss;
-		to_include[i] = bim_og_pos[i];
+		to_include[i] = i;
+		to_include_bim[i] = bim_og_pos[i];
 
 		if (snp_map.find(bim_snp_name[i]) != snp_map.end()) {
 			spdlog::info("Duplicated SNP ID (pos = {}), name: {}.", i, bim_snp_name[i]);
@@ -594,7 +621,7 @@ int reference::filter_snp_maf(double maf)
 	size_t prev_size = to_include.size();
 	double f = 0.0;
 
-	spdlog::info("Filtering SNPs with MAF > {}.", maf);
+	spdlog::info("Filtering SNPs with MAF <= {}.", maf);
 
 	to_include.clear();
 	snp_map.clear();
@@ -683,20 +710,22 @@ void reference::get_read_individuals(vector<int> &read_individuals)
  */
 void reference::parse_bed_data(char *buf, size_t snp_idx, vector<int> read_individuals)
 {
-	size_t j, k, ind_idx;
+	size_t j, k,
+		m = fam_ids_inc.size(),
+		ind_idx;
 	int buf_count = 0, bytes = (int)ceil(individuals / 4.0);
 	bitset<8> b;
 	int fcount = 0;
 
-	for (j = 0, ind_idx = 0; j < individuals && buf_count < bytes; ) {
+	for (j = 0, ind_idx = 0; j < individuals /*&& buf_count < bytes*/; buf_count++) {
 		b = buf[buf_count];
 		k = 0;
 		while (k < 7 && j < individuals) { // 11 for AA; 00 for BB
 			if (read_individuals[j] == 0)
 				k += 2;
 			else {
-				double b2 = !b[k++] ? 1.0 : 0.0, // This order is important
-					b1 = !b[k++] ? 1.0 : 0.0;
+				double b2 = (!b[k++]) ? 1.0 : 0.0, // This order is important
+					b1 = (!b[k++]) ? 1.0 : 0.0;
 				snp_2[snp_idx][ind_idx] = (bool)b2;
 				snp_1[snp_idx][ind_idx] = (bool)b1;
 				if (!b1 || b2) {
@@ -711,10 +740,28 @@ void reference::parse_bed_data(char *buf, size_t snp_idx, vector<int> read_indiv
 			}
 			j++;
 		}
-		buf_count++;
 	}
 	if (fcount > 0)
 		mu[snp_idx] /= fcount;
+
+#ifdef NDEBUG
+	ifstream ifile("mu.debug.txt");
+	bool write_header = file_is_empty(ifile);
+	ofstream file;
+
+	ifile.close();
+	file.open("mu.debug.txt", std::ios::out | std::ios::app);
+	if (file.fail()) {
+		spdlog::warn("mu.debug.txt");
+		return;
+	}
+
+	if (write_header) {
+		file << "SNP\tmu" << endl;
+	}
+	file << bim_snp_name[snp_idx] << "\t" << bim_allele1[snp_idx] << "\t" << bim_allele2[snp_idx] << "\t" << 0.5 * mu[snp_idx] << endl;
+	file.close();
+#endif
 }
 
 /*
@@ -752,44 +799,59 @@ int reference::read_bedfile(string bedfile)
 	mu.resize(bim_size);
 
 	// Producer/consumer async to quickly read and process the bed file
-	char* buf;
+	char *buf;
 	int bytes = (int)ceil(individuals / 4.0);
 #ifndef _MSC_VER
 	spdlog::info("Reading .bed file using OpenMP. More threads should increase performance of this.");
 #pragma omp parallel shared(read_individuals)
 #pragma omp for ordered
-	for (int ii = 0; ii < num_snps; ii++) {
+	for (int ii = 0; ii < end_snps; ii++) {
 #pragma omp ordered
 		{
 			buf = new char[bytes];
 			BIT.read(buf, bytes);
 
+			// If this is less than the first read SNP, then we can safely skip
+			if (ii < start_snps) {
+				delete[] buf;
+				continue;
+			}
+
 			// SNP in the matched SNP list?
 			vector<size_t>::iterator it;
-			if ((it = find(to_include.begin(), to_include.end(), ii)) != to_include.end())
+			if ((it = find(to_include_bim.begin(), to_include_bim.end(), ii)) != to_include_bim.end())
 			{
-				size_t snp_idx = it - to_include.begin();
+				size_t snp_idx = it - to_include_bim.begin();
 #pragma omp task
-				parse_bed_data(buf, snp_idx, read_individuals);
+				parse_bed_data(buf, to_include[snp_idx], read_individuals);
 			}
+
+			delete[] buf;
 		}
 	}
 #pragma omp taskwait
 #else
 	spdlog::info("Reading .bed file without using OpenMP. Using a compiler which supports OpenMP should increase performance of this.");
-	for (int ii = 0; ii < num_snps; ii++) {
-		{
-			buf = new char[bytes];
-			BIT.read(buf, bytes);
+	for (size_t ii = 0; ii < end_snps; ii++) 
+	{
+		buf = new char[bytes];
+		BIT.read(buf, bytes);
 
-			// SNP in the matched SNP list?
-			vector<size_t>::iterator it;
-			if ((it = find(to_include.begin(), to_include.end(), ii)) != to_include.end())
-			{
-				size_t snp_idx = it - to_include.begin();
-				parse_bed_data(buf, snp_idx, read_individuals);
-			}
+		// If this is less than the first read SNP, then we can safely skip
+		if (ii < start_snps) {
+			delete[] buf;
+			continue;
 		}
+
+		// SNP in the matched SNP list?
+		vector<size_t>::iterator it;
+		if ((it = find(to_include_bim.begin(), to_include_bim.end(), ii)) != to_include_bim.end())
+		{
+			size_t snp_idx = it - to_include_bim.begin(); // These vectors are always of same length so this should hold
+			parse_bed_data(buf, to_include[snp_idx], read_individuals);
+		}
+
+		delete[] buf;
 	}
 #endif
 

@@ -145,6 +145,7 @@ public:
 	vector<string> bim_snp_name; /// SNP names
 	vector<string> ref_A; /// Reference allele
 	vector<size_t> to_include; /// SNP list to include in analysis after sanitising
+	vector<size_t> to_include_bim; /// Positions in the original bim file
 	map<string, size_t> snp_map; /// Maps rsID/SNP identifer to vector position
 	vector<string> bim_allele1; /// A1
 	vector<string> bim_allele2; /// A2
@@ -166,9 +167,11 @@ private:
 	bool read; // Reference files have already been read and cleaned, if true.
 
 	// From .bim file
-	vector<size_t> bim_og_pos; /// Original position in the .bim file
+	vector<size_t> bim_og_pos; /// Position in the .bim file
+	vector<size_t> bim_read_pos; /// Read position in the .bim file
 	vector<double> bim_genet_dst; /// Distance 
 	// Extra helper info
+	size_t start_snps, end_snps; /// Location of first read and last read SNP in the reference panel
 	size_t num_snps; /// Number of SNPs in analysis
 	size_t num_snps_matched; /// Number of SNPs in analysis after matching
 	vector<string> other_A; /// Other allele
