@@ -202,9 +202,9 @@ void cond_analysis::match_gwas_phenotype(phenotype *pheno, reference *ref)
 	string filename = a_out + "." + pheno->get_phenoname() + ".included";
 	ofstream file(filename.c_str());
 
-	file << "SNP\tChisq\tPval\tFreq" << endl;
+	file << "SNP\tChisq\tB\tSE\tPval\tFreq" << endl;
 	for (size_t j = 0; j < ja_snp_name.size(); j++) {
-		file << ja_snp_name[j] << "\t" << ja_chisq[j] << "\t" << ja_pval[j] << "\t" << ja_freq[j] << endl;
+		file << ja_snp_name[j] << "\t" << ja_chisq[j] << "\t" << ja_beta[j] << "\t" << ja_beta_se[j] << "\t" << ja_pval[j] << "\t" << ja_freq[j] << endl;
 	}
 	file.close();
 }

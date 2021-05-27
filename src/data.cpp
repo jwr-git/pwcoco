@@ -168,10 +168,6 @@ void phenotype::read_phenofile(string filename)
 				if (n_buf && n_from_cmd && !n_warning) {
 					n_warning = true;
 					spdlog::warn("N is given at command line (n = {}) but the file also contains these values. Using values from command line instead.", n_from_cmd);
-					n_buf = n_from_cmd;
-				}
-				else if (n_buf && n_from_cmd) {
-					n_buf = n_from_cmd;
 				}
 				break;
 			case 8: // Nineth column contains N of cases (optional)
@@ -179,10 +175,6 @@ void phenotype::read_phenofile(string filename)
 				if (nc_buf && n_case_from_cmd && !n_warning) {
 					n_warning = true;
 					spdlog::warn("N or n_case is given at command line (n_case = {}) but the file also contains these values. Using values from command line instead.", n_case_from_cmd);
-					nc_buf = n_case_from_cmd;
-				}
-				else if (nc_buf && n_case_from_cmd) {
-					nc_buf = n_case_from_cmd;
 				}
 				ctype = coloc_type::COLOC_CC;
 				break;
@@ -192,6 +184,14 @@ void phenotype::read_phenofile(string filename)
 		if (se_buf == 0.0 || se_buf == 1.0
 			|| freq_buf == -1.0 || beta_buf == 1.0)
 			continue;
+
+		if (n_from_cmd) {
+			n_buf = n_from_cmd;
+		}
+
+		if (n_case_from_cmd) {
+			nc_buf = n_case_from_cmd;
+		}
 
 		// Add SNPs
 		snp_name.push_back(snp_name_buf);
@@ -717,17 +717,21 @@ void reference::parse_bed_data(char *buf, size_t snp_idx, vector<int> read_indiv
 	bitset<8> b;
 	int fcount = 0;
 
-	for (j = 0, ind_idx = 0; j < individuals /*&& buf_count < bytes*/; buf_count++) {
-		b = buf[buf_count];
+	for (j = 0, ind_idx = 0; j < individuals; )
+	{
+		b = buf[buf_count++];
 		k = 0;
 		while (k < 7 && j < individuals) { // 11 for AA; 00 for BB
-			if (read_individuals[j] == 0)
+			if (read_individuals[j] == 0) {
 				k += 2;
+			}
 			else {
 				double b2 = (!b[k++]) ? 1.0 : 0.0, // This order is important
 					b1 = (!b[k++]) ? 1.0 : 0.0;
 				snp_2[snp_idx][ind_idx] = (bool)b2;
 				snp_1[snp_idx][ind_idx] = (bool)b1;
+
+				// Frequency
 				if (!b1 || b2) {
 					double f = b1 + b2;
 					if (bim_allele2[snp_idx] == ref_A[snp_idx]) {
@@ -736,11 +740,13 @@ void reference::parse_bed_data(char *buf, size_t snp_idx, vector<int> read_indiv
 					mu[snp_idx] += f;
 					fcount += 1;
 				}
+
 				ind_idx++;
 			}
 			j++;
 		}
 	}
+
 	if (fcount > 0)
 		mu[snp_idx] /= fcount;
 
