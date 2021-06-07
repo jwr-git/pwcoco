@@ -54,8 +54,8 @@ For acceptable formats for these files, please see below.
 - `--init_h4` - PWCoCo will run an initial colocalisation on the unconditioned dataset. If the H4 for this analysis reaches this threshold, the program will terminate early. Default is 80 (i.e. 80%). Set to 0 if you would like the program to always continue regardless of the initial colocalisation result.
 - `--out_cond` - would you like for the conditioned data to be saved as text files as well? Just including this flag will work (no extra argument following this flag is necessary).
 - `--coloc_pp` - specify the three prior probability Ps: the next **three** arguments must be the P values, default is 1e-4, 1e-4 and 1e-5.
-- `--n1` - also `--n2`, specify the sample size (or number of controls, see next flag) for the corresponding summary statistics. 
-- `--n1_case` - also `--n2_case`, specify the number of cases for the corresponding summary statistics. If this flag is given, the above flag becomes the number of controls.
+- `--n1` - also `--n2`, specify the sample size (see also next flag) for the corresponding summary statistics. 
+- `--n1_case` - also `--n2_case`, specify the number of cases for the corresponding summary statistics.
 - `--threads` - sets number of threads available for OpenMP multi-threaded functions, default is 8.
 
 PWCoCo makes use of OpenMP to parallelise some tasks. This can greatly increase the performance of the tool and decrease the time required to run. It is advisable to use a compiler that utilises OpenMP version 3.0 (which is sadly not yet supported by Visual Studio). Furthermore, allowing the tool to make use of more threads should improve performance, especially with regards to the reference data loading. The reference panel loading and operations are the most intensive in the tool, so larger panels will require longer to parse -- in these instances, it would be preferable to use more threads so that performance is not greatly impacted.

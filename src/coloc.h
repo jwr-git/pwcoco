@@ -20,8 +20,8 @@ public:
 	coloc_analysis();
 	~coloc_analysis();
 
-	void init_coloc();
-	void init_coloc(string snp1, string snp2);
+	void init_coloc(string exp, string out);
+	void init_coloc(string snp1, string snp2, string exp, string out);
 
 	vector<double> pp_abf; // Results from colocalisation
 	
@@ -29,7 +29,7 @@ private:
 	bool perform_coloc();
 	bool estimate_bf(const vector<double> beta, const vector<double> se, const vector<double> freq, const vector<double> n, coloc_type type, vector<double> *ABF);
 	void combine_abf(size_t abf_size);
-	void results_to_file(string s1, string s2);
+	void results_to_file(string s1, string s2, string exp, string out);
 
 	mdata *matched;
 	string outfile;

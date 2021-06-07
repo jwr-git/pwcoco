@@ -323,8 +323,8 @@ int main(int argc, char* argv[])
 				path_to_file1{ dir_entry.path().u8string() },
 				path_to_file2 = phen2_file + "\\" + filename;
 
-			phenotype *exposure = init_pheno(path_to_file1, "exposure", n1, n1_case);
-			phenotype *outcome = init_pheno(path_to_file2, "outcome", n2, n2_case);
+			phenotype *exposure = init_pheno(path_to_file1, filename + ".exp", n1, n1_case);
+			phenotype *outcome = init_pheno(path_to_file2, filename + ".out", n2, n2_case);
 			if (exposure->has_failed() || outcome->has_failed()) {
 				spdlog::error("Reading of either summary statistic files has failed; have these been moved or altered?");
 				spdlog::error("File 1: {}", path_to_file1);
@@ -370,8 +370,8 @@ int main(int argc, char* argv[])
 	else {
 		// Case 2
 		// Files were given
-		phenotype *exposure = init_pheno(phen1_file, "exposure", n1, n1_case);
-		phenotype *outcome = init_pheno(phen2_file, "outcome", n2, n2_case);
+		phenotype *exposure = init_pheno(phen1_file, fs::path(phen1_file).filename().string(), n1, n1_case);
+		phenotype *outcome = init_pheno(phen2_file, fs::path(phen2_file).filename().string(), n2, n2_case);
 		if (exposure->has_failed() || outcome->has_failed()) {
 			spdlog::critical("Reading of either summary statistic files has failed; have these been moved or altered?");
 			return 1;
@@ -434,7 +434,7 @@ int initial_coloc(phenotype *exposure, phenotype *outcome, string out, double p1
 	// First pass through - match data and perform coloc
 	mdata *matched = new mdata(exposure, outcome);
 	coloc_analysis *initial_coloc = new coloc_analysis(matched, out, p1, p2, p3);
-	initial_coloc->init_coloc();
+	initial_coloc->init_coloc(exposure->get_phenoname(), outcome->get_phenoname());
 
 	if (initial_coloc->pp_abf[H4] > init_h4) {
 		spdlog::info("Stopping algorthim as H4 for initial colocalisation analysis is already at or above threshold ({}%).", init_h4 * 100);
@@ -456,11 +456,11 @@ int pwcoco_sub(phenotype *exposure, phenotype *outcome, reference *ref, double p
 	conditional_dat *out_cdat = new conditional_dat();
 
 	// Find each independent SNPs for both exposure and outcome data
-	cond_analysis *exp_analysis = new cond_analysis(p_cutoff, collinear, ld_window, out, top_snp, freq_threshold, "exposure", cond_ssize);
+	cond_analysis *exp_analysis = new cond_analysis(p_cutoff, collinear, ld_window, out, top_snp, freq_threshold, exposure->get_phenoname(), cond_ssize);
 	exp_analysis->init_conditional(exposure, ref);
 	exp_analysis->find_independent_snps(exp_cdat, ref);
 
-	cond_analysis *out_analysis = new cond_analysis(p_cutoff, collinear, ld_window, out, top_snp, freq_threshold, "outcome", cond_ssize);
+	cond_analysis *out_analysis = new cond_analysis(p_cutoff, collinear, ld_window, out, top_snp, freq_threshold, outcome->get_phenoname(), cond_ssize);
 	out_analysis->init_conditional(outcome, ref);
 	out_analysis->find_independent_snps(out_cdat, ref);
 
@@ -531,7 +531,7 @@ int pwcoco_sub(phenotype *exposure, phenotype *outcome, reference *ref, double p
 				matched_conditional = new mdata(exp_analysis, out_analysis);
 
 			coloc_analysis *conditional_coloc = new coloc_analysis(matched_conditional, out, p1, p2, p3);
-			conditional_coloc->init_coloc(exp_snp_name, out_snp_name);
+			conditional_coloc->init_coloc(exp_snp_name, out_snp_name, exp_analysis->get_cond_name(), out_analysis->get_cond_name());
 
 			delete(matched_conditional);
 			delete(conditional_coloc);

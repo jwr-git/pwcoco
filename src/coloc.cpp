@@ -128,25 +128,25 @@ void coloc_analysis::combine_abf(size_t abf_size)
  * First pass of colocalisation analysis using the unconditioned data.
  * @ret void
  */
-void coloc_analysis::init_coloc()
+void coloc_analysis::init_coloc(string exp, string out)
 {
 	perform_coloc();
 	spdlog::info("Unconditioned colocalisation results.");
 	spdlog::info("H0: {:.2f}; H1: {:.2f}; H2: {:.2f}; H3: {:.2f}; H4: {:.2f}; abf_all: {:.2f}.", pp_abf[H0], pp_abf[H1], pp_abf[H2], pp_abf[H3], pp_abf[H4], log_abf_all);
-	results_to_file("unconditioned", "unconditioned");
+	results_to_file("unconditioned", "unconditioned", exp ,out);
 }
 
 /*
  * Initialises the colocalisation analysis using the conditioned data.
  * @ret void
  */
-void coloc_analysis::init_coloc(string snp1, string snp2)
+void coloc_analysis::init_coloc(string snp1, string snp2, string exp, string out)
 {
 	if (perform_coloc() == false)
 		return;
 	spdlog::info("Conditioned results for SNP1: {}, SNP2: {}", snp1, snp2);
 	spdlog::info("H0: {:.2f}; H1: {:.2f}; H2: {:.2f}; H3: {:.2f}; H4: {:.2f}; abf_all: {:.2f}.", pp_abf[H0], pp_abf[H1], pp_abf[H2], pp_abf[H3], pp_abf[H4], log_abf_all);
-	results_to_file(snp1, snp2);
+	results_to_file(snp1, snp2, exp ,out);
 }
 
 /*
@@ -189,7 +189,7 @@ bool coloc_analysis::perform_coloc()
  * Saves colocalisation results to file.
  * @ret void
  */
-void coloc_analysis::results_to_file(string s1, string s2)
+void coloc_analysis::results_to_file(string s1, string s2, string exp, string out)
 {
 	ifstream ifile(outfile + ".coloc");
 	bool write_header = file_is_empty(ifile);
