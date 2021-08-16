@@ -17,6 +17,13 @@
 
 using namespace std;
 
+#if defined(_MSC_VER)
+#define fseek64 _fseeki64
+#else
+#define _FILE_OFFSET_BITS 64
+#define fseek64 fseeko
+#endif
+
 enum class coloc_type : int {
 	COLOC_NONE = 0,
 	COLOC_QUANT,
@@ -119,13 +126,13 @@ public:
 	void parse_bed_data(char *buf, size_t i, vector<int> read_individuals);
 	void bim_clear();
 	void fam_clear();
-	void match_bim(vector<string> &names, vector<string> &names2);
+	void match_bim(vector<string> &names, vector<string> &names2, bool keep_frequencies);
 	void whole_bim();
+	void reset_vectors();
 
 	int filter_snp_maf(double maf);
 	void sanitise_list();
 	void pair_fam();
-	void calculate_allele_freq();
 	void get_read_individuals(vector<int> &read_individuals);
 	void update_inclusion(const vector<size_t> idx, const vector<string> snps);
 
@@ -151,6 +158,14 @@ public:
 	vector<string> bim_allele2; /// A2
 	vector<unsigned char> bim_chr; /// Chromosome
 	vector<int> bim_bp; /// BP position
+	vector<size_t> bim_read_pos; /// Read position in the .bim file
+
+	// Unaltered vectors
+	vector<string> bim_snp_name_m; /// Unaltered SNP names
+	vector<string> bim_allele1_m; /// A1
+	vector<string> bim_allele2_m; /// A2
+	vector<unsigned char> bim_chr_m; /// Chromosome
+	vector<int> bim_bp_m; /// BP position
 
 	// From .fam
 	vector<size_t> fam_ids_inc; /// Family IDs that are included in the analysis
@@ -168,7 +183,6 @@ private:
 
 	// From .bim file
 	vector<size_t> bim_og_pos; /// Position in the .bim file
-	vector<size_t> bim_read_pos; /// Read position in the .bim file
 	vector<double> bim_genet_dst; /// Distance 
 	// Extra helper info
 	size_t start_snps, end_snps; /// Location of first read and last read SNP in the reference panel
@@ -187,6 +201,11 @@ private:
 	vector<unsigned short> fam_pheno; /// Phenotype value '1' = control, '2' = case, '-9'/'0'/non-numeric = missing data if case/control
 	size_t individuals; /// Number of individuals read from the .fam file
 	map<string, size_t> fam_map; /// Mapping between FIDs and IIDs
+
+	// Unaltered vectors for frequencies
+	vector<vector<bool>> bed_snp_1_m;
+	vector<vector<bool>> bed_snp_2_m;
+	vector<double> mu_m; /// Calculated allele frequencies using fam data
 
 	vector<vector<bool>>snp_1;
 	vector<vector<bool>>snp_2;

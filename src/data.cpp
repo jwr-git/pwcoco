@@ -204,7 +204,7 @@ void phenotype::read_phenofile(string filename)
 		n.push_back(n_buf);
 		s = n_buf != 0 ? nc_buf / n_buf : nc_buf;
 		if (s < 0 || s >= 1) {
-			spdlog::warn("SNP {} in phenotyle file {} has case proportion outside of range [0, 1) - capping.", snp_name_buf, s);
+			spdlog::warn("SNP {} in phenotype file {} has case proportion outside of range [0, 1) - capping.", snp_name_buf, s);
 			s = s < 0 ? 0 : s >= 1 ? s = 1 - 1e-8 : s;
 		}
 		n_case.push_back(s); // n_case will contain proportion of cases to total sample size
@@ -358,7 +358,7 @@ int reference::read_bimfile(string bimfile)
  * @param vector<string> names2 SNP names from second dataset
  * @ret void
  */
-void reference::match_bim(vector<string> &names, vector<string> &names2)
+void reference::match_bim(vector<string> &names, vector<string> &names2, bool keep_frequencies)
 {
 	// Temporary containers
 	vector<string> bim_snp_name_t,
@@ -367,8 +367,10 @@ void reference::match_bim(vector<string> &names, vector<string> &names2)
 	vector<unsigned char> bim_chr_t;
 	vector<int> bim_bp_t;
 	//vector<double> bim_genet_dst_t;
-	vector<int> r_positions, // Read positions in bim vectors
+	vector<signed long> r_positions, // Read positions in bim vectors
 		og_positions; // Original position in the bim file
+	vector<double> mu_t;
+	vector<vector<bool>> snp_1_t, snp_2_t;
 	vector<size_t> r_positions_t, og_positions_t;
 	vector<string> snp_names = names;
 	
@@ -379,6 +381,7 @@ void reference::match_bim(vector<string> &names, vector<string> &names2)
 	og_positions.resize(snp_names.size());
 	fill(r_positions.begin(), r_positions.end(), -1);
 	fill(og_positions.begin(), og_positions.end(), -1);
+
 #pragma omp parallel for
 	for (int i = 0; i < snp_names.size(); ++i) {
 		vector<string>::iterator it;
@@ -405,6 +408,12 @@ void reference::match_bim(vector<string> &names, vector<string> &names2)
 		bim_chr_t.push_back(bim_chr[bim_read_pos[j]]);
 		bim_bp_t.push_back(bim_bp[bim_read_pos[j]]);
 		//bim_genet_dst_t.push_back(bim_genet_dst[bim_read_pos[j]]);
+
+		if (keep_frequencies) {
+			snp_1_t.push_back(bed_snp_1[bim_read_pos[j]]);
+			snp_2_t.push_back(bed_snp_2[bim_read_pos[j]]);
+			mu_t.push_back(mu[bim_read_pos[j]]);
+		}
 	}
 	bim_snp_name.swap(bim_snp_name_t);
 	bim_allele1.swap(bim_allele1_t);
@@ -412,6 +421,12 @@ void reference::match_bim(vector<string> &names, vector<string> &names2)
 	bim_chr.swap(bim_chr_t);
 	bim_bp.swap(bim_bp_t);
 	//bim_genet_dst.swap(bim_genet_dst_t);
+
+	if (keep_frequencies) {
+		bed_snp_1.swap(snp_1_t);
+		bed_snp_2.swap(snp_2_t);
+		mu.swap(mu_t);
+	}
 
 	num_snps_matched = bim_chr.size();
 	ref_A = bim_allele1;
@@ -427,33 +442,33 @@ void reference::match_bim(vector<string> &names, vector<string> &names2)
  */
 void reference::whole_bim()
 {
-#ifdef TEST
 	// Temporary containers
-	vector<string> bim_snp_name_t = bim_snp_name,
+	vector<string> bim_snp_name_t,
 		bim_allele1_t,
 		bim_allele2_t;
 	vector<unsigned char> bim_chr_t;
 	vector<int> bim_bp_t;
 	//vector<double> bim_genet_dst_t;
-	vector<size_t> positions = bim_og_pos;
+	vector<size_t> positions = bim_read_pos;
 
 	// Create map between SNP names and positions
 	// This will contain only unique SNPs inherently
-	map<string, size_t> m;
-	for (size_t i = 0; i < bim_snp_name_t.size(); ++i) {
-		m[bim_snp_name_t[i]] = positions[i];
+	map<size_t, string> m;
+	for (size_t i = 0; i < bim_snp_name.size(); ++i) {
+		m[positions[i]] = bim_snp_name[i];
+//		m[bim_snp_name[i]] = positions[i];
 	}
 
 	// Move positions back into vector
-	for (map<string, size_t>::iterator it = m.begin(); it != m.end(); ++it) {
-		if (it->second == -1)
+	for (map<size_t, string>::iterator it = m.begin(); it != m.end(); ++it) {
+		if (it->first == -1)
 			continue;
 
-		bim_snp_name_t.push_back(bim_snp_name[it->second]);
-		bim_allele1_t.push_back(bim_allele1[it->second]);
-		bim_allele2_t.push_back(bim_allele2[it->second]);
-		bim_chr_t.push_back(bim_chr[it->second]);
-		bim_bp_t.push_back(bim_bp[it->second]);
+		bim_snp_name_t.push_back(bim_snp_name[it->first]);
+		bim_allele1_t.push_back(bim_allele1[it->first]);
+		bim_allele2_t.push_back(bim_allele2[it->first]);
+		bim_chr_t.push_back(bim_chr[it->first]);
+		bim_bp_t.push_back(bim_bp[it->first]);
 		//bim_genet_dst_t.push_back(bim_genet_dst[it->second]);
 	}
 
@@ -464,14 +479,34 @@ void reference::whole_bim()
 	bim_bp.swap(bim_bp_t);
 	//bim_genet_dst.swap(bim_genet_dst_t);
 
+	// Unaltered copies
+	bim_snp_name_m = bim_snp_name;
+	bim_allele1_m = bim_allele1;
+	bim_allele2_m = bim_allele2;
+	bim_chr_m = bim_chr;
+	bim_bp_m = bim_bp;
+
 	num_snps_matched = bim_chr.size();
 	ref_A = bim_allele1;
 	other_A = bim_allele2;
 
 	spdlog::info("Number of SNPs included from .bim file: {}.", num_snps_matched);
-#else
-	spdlog::critical("This feature is still undergoing testing.");
-#endif
+}
+
+/*
+ * Resets the bim vectors to the original state.
+ * @ret void
+ */
+void reference::reset_vectors()
+{
+	bim_snp_name = bim_snp_name_m;
+	bim_allele1 = bim_allele1_m;
+	bim_allele2 = bim_allele2_m;
+	bim_chr = bim_chr_m;
+	bim_bp = bim_bp_m;
+	bed_snp_1 = bed_snp_1_m;
+	bed_snp_2 = bed_snp_2_m;
+	mu = mu_m;
 }
 
 /*
@@ -649,40 +684,6 @@ int reference::filter_snp_maf(double maf)
 }
 
 /*
- * Calculates allele frequencies based on .fam data
- * @ret void
- */
-void reference::calculate_allele_freq()
-{
-	const size_t n = to_include.size(),
-		m = fam_ids_inc.size();
-
-	spdlog::info("Calculating allele frequencies from .fam data.");
-	mu.clear();
-	mu.resize(n);
-
-#pragma omp parallel for
-	for (int i = 0; i < n; i++) {
-		double fcount = 0.0;
-		for (int j = 0; j < m; j++) {
-			double f = 0.0;
-			if (!bed_snp_1[i][fam_ids_inc[j]] || bed_snp_2[i][fam_ids_inc[j]]) {
-				double snp1 = bed_snp_1[i][fam_ids_inc[j]] ? 1.0 : 0.0,
-					snp2 = bed_snp_2[i][fam_ids_inc[j]] ? 1.0 : 0.0;
-				f = snp1 + snp2;
-				if (bim_allele2[i] == ref_A[i])
-					f = 2.0 - f;
-				mu[i] += f;
-				fcount += 1.0;
-			}
-		}
-
-		if (fcount > 0.0)
-			mu[i] /= fcount;
-	}
-}
-
-/*
  * Creates read_individuals vector from .fam data.
  * @param vector<int> &read_individuals Vector reference to input data
  * @ret void
@@ -713,13 +714,14 @@ void reference::parse_bed_data(char *buf, size_t snp_idx, vector<int> read_indiv
 	size_t j, k,
 		m = fam_ids_inc.size(),
 		ind_idx;
-	int buf_count = 0, bytes = (int)ceil(individuals / 4.0);
+	int buf_count = 0;
 	bitset<8> b;
-	int fcount = 0;
+	double fcount = 0;
 
 	for (j = 0, ind_idx = 0; j < individuals; )
 	{
-		b = buf[buf_count++];
+		b = buf[buf_count];
+		buf_count++;
 		k = 0;
 		while (k < 7 && j < individuals) { // 11 for AA; 00 for BB
 			if (read_individuals[j] == 0) {
@@ -738,7 +740,7 @@ void reference::parse_bed_data(char *buf, size_t snp_idx, vector<int> read_indiv
 						f = 2.0 - f;
 					}
 					mu[snp_idx] += f;
-					fcount += 1;
+					fcount += 1.0;
 				}
 
 				ind_idx++;
@@ -749,25 +751,6 @@ void reference::parse_bed_data(char *buf, size_t snp_idx, vector<int> read_indiv
 
 	if (fcount > 0)
 		mu[snp_idx] /= fcount;
-
-#ifdef NDEBUG
-	ifstream ifile("mu.debug.txt");
-	bool write_header = file_is_empty(ifile);
-	ofstream file;
-
-	ifile.close();
-	file.open("mu.debug.txt", std::ios::out | std::ios::app);
-	if (file.fail()) {
-		spdlog::warn("mu.debug.txt");
-		return;
-	}
-
-	if (write_header) {
-		file << "SNP\tmu" << endl;
-	}
-	file << bim_snp_name[snp_idx] << "\t" << bim_allele1[snp_idx] << "\t" << bim_allele2[snp_idx] << "\t" << 0.5 * mu[snp_idx] << endl;
-	file.close();
-#endif
 }
 
 /*
@@ -783,6 +766,7 @@ int reference::read_bedfile(string bedfile)
 	const size_t bim_size = to_include.size(),
 		fam_size = fam_ids_inc.size();
 	vector<int> read_individuals;
+	int bed_offset = 3;
 
 	snp_1.resize(bim_size);
 	snp_2.resize(bim_size);
@@ -791,82 +775,65 @@ int reference::read_bedfile(string bedfile)
 		snp_2[i].resize(fam_size);
 	}
 
-	// First three bytes are used for the file format and are not read
-	char ch[3];
-	fstream BIT(bedfile.c_str(), ios::in | ios::binary);
-	if (!BIT) {
-		throw("Bed file cannot be opened for reading: {}.", bedfile);
-		return 0;
-	}
-	BIT.read(ch, 3);
-
 	get_read_individuals(read_individuals);
 	mu.clear();
 	mu.resize(bim_size);
 
-	// Producer/consumer async to quickly read and process the bed file
-	int bytes = (int)ceil(individuals / 4.0);
-#ifdef TEST
-	spdlog::info("Reading .bed file using OpenMP. More threads should increase performance of this.");
-#pragma omp parallel shared(read_individuals)
-	{
-#pragma omp for ordered
-		for (size_t ii = 0; ii < end_snps; ii++) {
-#pragma omp ordered
-			{
-				char *buf = new char[bytes];
-				BIT.read(buf, bytes);
+	FILE *bed;
+	int sample_size = (individuals + 3) / 4;
 
-				// If this is less than the first read SNP, then we can safely skip
-				if (ii < start_snps) {
-					delete[] buf;
-				}
-				else {
-					// SNP in the matched SNP list?
-					vector<size_t>::iterator it;
-					if ((it = find(to_include_bim.begin(), to_include_bim.end(), ii)) != to_include_bim.end())
-					{
-						size_t snp_idx = it - to_include_bim.begin();
+	if ((bed = fopen(bedfile.c_str(), "rb")) == NULL) {
+		throw("Bed file cannot be opened for reading: {}.", bedfile);
+		return 0;
+	}
+
+	char *buf = new char[sample_size];
+
+#ifdef OMP_TEST
+	spdlog::critical("This feature is in beta -- please do not use if not for testing.");
+	spdlog::info("Reading .bed file using OpenMP. More threads should increase performance of this.");
+#pragma omp parallel for
+	for (size_t j = 0; j < to_include_bim.size(); j++)
+	{
+#pragma omp critical
+		{
+			if (fseek64(bed, bed_offset + (to_include_bim[j] * sample_size), SEEK_SET) == 0) {
+				char *buf = new char[sample_size];
+				if (fread(buf, 1, sample_size, bed) == sample_size) {
 #pragma omp task
-						parse_bed_data(buf, to_include[snp_idx], read_individuals);
-					}
+					parse_bed_data(buf, to_include[j], read_individuals);
 
 					delete[] buf;
 				}
 			}
 		}
-#pragma omp taskwait
 	}
+#pragma omp taskwait
 #else
-	spdlog::info("Reading .bed file without using OpenMP. Using a compiler which supports OpenMP should increase performance of this.");
-	for (size_t ii = 0; ii < end_snps; ii++) 
-	{
-		char *buf = new char[bytes];
-		BIT.read(buf, bytes);
-
-		// If this is less than the first read SNP, then we can safely skip
-		if (ii < start_snps) {
-			delete[] buf;
+	for (size_t j = 0; j < to_include_bim.size(); j++) {
+		if (fseek64(bed, bed_offset + (to_include_bim[j] * sample_size), SEEK_SET) != 0) {
 			continue;
 		}
 
-		// SNP in the matched SNP list?
-		vector<size_t>::iterator it;
-		if ((it = find(to_include_bim.begin(), to_include_bim.end(), ii)) != to_include_bim.end())
-		{
-			size_t snp_idx = it - to_include_bim.begin(); // These vectors are always of same length so this should hold
-			parse_bed_data(buf, to_include[snp_idx], read_individuals);
+		if (fread(buf, 1, sample_size, bed) != sample_size) {
+			continue;
 		}
 
-		delete[] buf;
+		parse_bed_data(buf, to_include[j], read_individuals);
 	}
 #endif
 
-	BIT.clear();
-	BIT.close();
+	delete[] buf;
+
+	fclose(bed);
 
 	bed_snp_1.swap(snp_1);
 	bed_snp_2.swap(snp_2);
+
+	// Save frequencies into vector which will not change
+	bed_snp_1_m = bed_snp_1;
+	bed_snp_2_m = bed_snp_2;
+	mu_m = mu;
 
 	spdlog::info("Finished reading .bed file. Genotype data for {} individuals and {} SNPs read.", fam_size, bim_size);
 	return 1;

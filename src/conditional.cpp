@@ -158,6 +158,7 @@ void cond_analysis::match_gwas_phenotype(phenotype *pheno, reference *ref)
 
 	ref->update_inclusion(idx, snps);
 	to_include = ref->to_include;
+	to_include_bim = ref->to_include_bim;
 	fam_ids_inc = ref->fam_ids_inc;
 
 	if (to_include.empty()) {
@@ -768,7 +769,6 @@ void cond_analysis::pw_conditional(int pos, bool out_cond, conditional_dat *cdat
 	// Move SNPs into the remain category
 	if (pos >= 0) {
 		size_t i = 0;
-		//while (selected.size() > 1) {
 		for (i = 0; i < selected.size(); i++) {
 			if (selected[i] == compare) {
 				remain.push_back(selected[i]);
@@ -776,15 +776,7 @@ void cond_analysis::pw_conditional(int pos, bool out_cond, conditional_dat *cdat
 				selected.erase(selected.begin() + i);
 				break;
 			}
-			//remain.push_back(selected[i]);
-			//erase_B_and_Z(selected, selected[i], cdat);
-			//selected.erase(selected.begin() + i);
-			//i = 0;
 		}
-
-		//selected.clear();
-		//selected.resize(1);
-		//selected[0] = ind_snps[pos];
 	}
 
 	massoc_conditional(selected, remain, cdat, bC, bC_se, pC, ref);

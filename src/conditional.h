@@ -158,6 +158,7 @@ private:
 	int num_snps;
 
 	vector<size_t> to_include; /// SNP list to include in analysis after sanitising
+	vector<size_t> to_include_bim; /// SNP bim locations
 	vector<size_t> fam_ids_inc; /// Family IDs that are included in the analysis
 
 	// Joint analysis related

@@ -252,48 +252,36 @@ int main(int argc, char* argv[])
 	//}
 
 	// Check if summary stats 1 is file or directory
-	if (phen1_file.compare("") == 0) {
-		spdlog::critical("Summary stats 1 file has not been supplied, please supply this before continuing.");
-		return 0;
-	}
-	else {
-		const fs::path path(phen1_file);
-		error_code ec;
+	const fs::path path(phen1_file);
+	error_code ec;
 
-		if (fs::is_directory(path, ec)) {
-			data_folder = true;
-			spdlog::info("Summary stats 1 is treated as a folder.");
-			spdlog::warn("Passing folders as the summary statistics arguments is a beta feature and may be buggy. Please do not use this feature to inform on active analyses!");
-		}
-		else if (fs::is_regular_file(path, ec)) {
-			data_folder = false;
-			spdlog::info("Summary stats 1 is treated as a file.");
-		}
+	if (fs::is_directory(path, ec)) {
+		data_folder = true;
+		spdlog::info("Summary stats 1 is treated as a folder.");
+		spdlog::warn("Passing folders as the summary statistics arguments is a beta feature and may be buggy. Please do not use this feature to inform on active analyses!");
+	}
+	else if (fs::is_regular_file(path, ec)) {
+		data_folder = false;
+		spdlog::info("Summary stats 1 is treated as a file.");
 	}
 
 	// Check to see if summary stats 2 matches 1
-	if (phen2_file.compare("") == 0) {
-		spdlog::critical("Summary stats 2 file has not been supplied, please supply this before continuing.");
+	const fs::path path2(phen2_file);
+	error_code ec2;
+
+	if (data_folder && fs::is_directory(path2, ec2)) {
+		spdlog::info("Summary stats 2 is treated as a folder.");
+	}
+	else if (data_folder && !fs::is_directory(path2, ec2)) {
+		spdlog::info("Summary stats 2 expected to be a folder but is not. Please fix this before continuing.");
 		return 0;
 	}
-	else {
-		const fs::path path(phen2_file);
-		error_code ec;
-
-		if (data_folder && fs::is_directory(path, ec)) {
-			spdlog::info("Summary stats 2 is treated as a folder.");
-		}
-		else if (data_folder && !fs::is_directory(path, ec)) {
-			spdlog::info("Summary stats 2 expected to be a folder but is not. Please fix this before continuing.");
-			return 0;
-		}
-		else if (!data_folder && fs::is_regular_file(path, ec)) {
-			spdlog::info("Summary stats 2 is treated as a file.");
-		}
-		else if (!data_folder && !fs::is_regular_file(path, ec)) {
-			spdlog::info("Summary stats 2 expected to be a file but is not. Please fix this before continuing.");
-			return 0;
-		}
+	else if (!data_folder && fs::is_regular_file(path2, ec2)) {
+		spdlog::info("Summary stats 2 is treated as a file.");
+	}
+	else if (!data_folder && !fs::is_regular_file(path2, ec2)) {
+		spdlog::info("Summary stats 2 expected to be a file but is not. Please fix this before continuing.");
+		return 0;
 	}
 
 #if defined(_OPENMP)
@@ -321,7 +309,7 @@ int main(int argc, char* argv[])
 		{
 			string filename{ dir_entry.path().filename().u8string() },
 				path_to_file1{ dir_entry.path().u8string() },
-				path_to_file2 = phen2_file + "\\" + filename;
+				path_to_file2 = phen2_file + "/" + filename;
 
 			phenotype *exposure = init_pheno(path_to_file1, filename + ".exp", n1, n1_case);
 			phenotype *outcome = init_pheno(path_to_file2, filename + ".out", n2, n2_case);
@@ -354,11 +342,19 @@ int main(int argc, char* argv[])
 				if (ref->read_bedfile(bed_file) == 0) {
 					return 0;
 				}
-				//ref->calculate_allele_freq();
-				if (maf > 0.0) {
-					if (ref->filter_snp_maf(maf) == 0)
-						return 0;
-				}
+			}
+			else {
+				// Need to clear previous matching
+				ref->reset_vectors();
+			}
+
+			// Match SNPs to bim
+			ref->match_bim(exposure->get_snp_names(), outcome->get_snp_names(), true);
+			ref->sanitise_list();
+
+			if (maf > 0.0) {
+				if (ref->filter_snp_maf(maf) == 0)
+					return 0;
 			}
 
 			// Do the related conditional and colocalisation analyses
@@ -386,7 +382,7 @@ int main(int argc, char* argv[])
 			return 0;
 		}
 		// In case 2, we only need those SNPs which have already been matched between the exposure and the outcome
-		ref->match_bim(exposure->get_snp_names(), outcome->get_snp_names());
+		ref->match_bim(exposure->get_snp_names(), outcome->get_snp_names(), false);
 		ref->sanitise_list();
 
 		// Fam-related
