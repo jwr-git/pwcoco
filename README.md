@@ -63,7 +63,7 @@ PWCoCo makes use of OpenMP to parallelise some tasks. This can greatly increase 
 ## Example
 Example files will be provided soon so that a full analysis can be run. Instead, here is an example command to run the analysis:
 
-`pwcoco --bfile "../../1kg_plink/chr5" --sum_stats1 "tgfbi/TGFBI_exposure.txt" --sum_stats2 "tgfbi/TGFBI_outcome.txt" --out "tgfbi/res" --chr 5 --maf 0.01 --out_cond`
+`pwcoco --bfile ../../1kg_plink/chr5 --sum_stats1 tgfbi/TGFBI_exposure.txt --sum_stats2 tgfbi/TGFBI_outcome.txt --out tgfbi/res --chr 5 --maf 0.01 --out_cond`
 
 ### Input
 The reference files must be in Plink format (specified using the `--bfile` flag). This means a .bed, .bim and .fam file in the same directory with the same name. Including the file ending is not required for PWCoCo to access these.
