@@ -106,9 +106,9 @@ If the data has been unconditioned, then the SNP column will contain "unconditio
 
 The program will also output two extra files (ending in `.included`) listing the SNPs included in the analysis from each dataset. Finally, if the `out_cond` flag is set to true, the program will output the conditioned results after the conditional analysis in files ending with `.cojo`:
 
-`Chr	SNP	bp	refA	freq	b	se	p	n	freq_geno	bC	bC_se	pC`
+`Chr	SNP	bp	refA	freq	b	se	p	n	freq_geno	bC	bC_se	pC	rs12345`
 
-The columns `freq`, `b`, `se` and `p` should be unaltered from the original dataset. The final columns will be post-conditional analysis. 
+The columns `freq`, `b`, `se` and `p` should be unaltered from the original dataset. The  columns postfixed "C" will be post-conditional analysis.  The final column will be named after the lead SNP of the association signal and will show the LD (r2) between the column SNP and the row SNP. The lead SNP will also be used in the name of the file to differentiate it from other conditional files from the same dataset.
 
 ## To Do
 - Provide example files.

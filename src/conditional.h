@@ -120,7 +120,7 @@ private:
 
 	void LD_rval(const vector<size_t> &idx, eigenMatrix &rval, conditional_dat *cdat);
 	void LD_rval(const vector<size_t> &v1, const vector<size_t> &v2, eigenMatrix &rval, reference *ref);
-	void sanitise_output(vector<size_t> &selected, vector<size_t> &remain, conditional_dat *cdat, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, reference *ref);
+	void sanitise_output(vector<size_t> &selected, vector<size_t> &remain, int pos, conditional_dat *cdat, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, reference *ref);
 	void locus_plot(char *filename, char *datafile, char *to_save, char *snpname, double bp, double p, double pC);
 
 	double a_ld_window; // Distance in kb after which SNPs are considered to be in LD

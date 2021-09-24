@@ -781,7 +781,7 @@ void cond_analysis::pw_conditional(int pos, bool out_cond, conditional_dat *cdat
 
 	massoc_conditional(selected, remain, cdat, bC, bC_se, pC, ref);
 	if (out_cond) {
-		sanitise_output(selected, remain, cdat, bC, bC_se, pC, ref);
+		sanitise_output(selected, remain, pos, cdat, bC, bC_se, pC, ref);
 	}
 
 	// Save in friendly format for mdata class
@@ -907,16 +907,13 @@ void cond_analysis::LD_rval(const vector<size_t> &v1, const vector<size_t> &v2, 
 	}
 }
 
-void cond_analysis::sanitise_output(vector<size_t> &selected, vector<size_t> &remain, conditional_dat *cdat, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, reference *ref)
+void cond_analysis::sanitise_output(vector<size_t> &selected, vector<size_t> &remain, int pos, conditional_dat *cdat, eigenVector &bJ, eigenVector &bJ_se, eigenVector &pJ, reference *ref)
 {
 	string filename;
 	size_t i = 0, j = 0, k;
 
 	filename = a_out + "." + get_cond_name();
-	for (i = 0; i < selected.size(); i++) {
-		filename = filename + "." + ref->bim_snp_name[to_include[selected[i]]];
-	}
-	filename = filename + ".cojo";
+	filename = filename + "." + ref->bim_snp_name[to_include[selected[0]]] + ".cojo";
 	ofstream ofile(filename.c_str());
 
 	if (!ofile) {
