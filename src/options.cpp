@@ -478,16 +478,13 @@ int pwcoco_sub(phenotype *exposure, phenotype *outcome, reference *ref, double p
 #endif
 
 	// Perform PWCoCo!
-	string exp_snp_name = "", out_snp_name = "";
-	if (exp_analysis->get_num_ind() == 0)
-		exp_snp_name = "unconditioned";
-	if (out_analysis->get_num_ind() == 0)
-		out_snp_name = "unconditioned";
-
 //#pragma omp parallel for
 	for (int i = 0; i < exp_analysis->get_num_ind() + 1; i++)
 	{
-		if (exp_snp_name != "unconditioned" && i < exp_analysis->get_num_ind()) {
+		string exp_snp_name = "", out_snp_name = "";
+
+		if (i < exp_analysis->get_num_ind()) 
+		{
 			// New conditional data struct for parallelisation
 			conditional_dat *par_exp_cdat = new conditional_dat(*exp_cdat);
 
@@ -496,15 +493,15 @@ int pwcoco_sub(phenotype *exposure, phenotype *outcome, reference *ref, double p
 
 			delete(par_exp_cdat);
 		}
-		else if ((exp_snp_name != "unconditioned" && i >= exp_analysis->get_num_ind())
-			|| (exp_snp_name == "unconditioned" && i > 0))
+		else if (i >= exp_analysis->get_num_ind())
 		{
-			break;
+			exp_snp_name = "unconditioned";
 		}
 
 		for (int j = 0; j < out_analysis->get_num_ind() + 1; j++)
 		{
-			if (out_snp_name != "unconditioned" && j < out_analysis->get_num_ind()) {
+			if (j < out_analysis->get_num_ind())
+			{
 				conditional_dat *par_out_cdat = new conditional_dat(*out_cdat);
 
 				out_analysis->pw_conditional(out_analysis->get_num_ind() > 1 ? j : -1, out_cond, par_out_cdat, ref);
@@ -512,11 +509,13 @@ int pwcoco_sub(phenotype *exposure, phenotype *outcome, reference *ref, double p
 
 				delete(par_out_cdat);
 			}
-			else if ((out_snp_name != "unconditioned" && j >= out_analysis->get_num_ind())
-				|| (out_snp_name == "unconditioned" && j > 0))
+			else if (j >= out_analysis->get_num_ind())
 			{
-				break;
+				out_snp_name = "unconditioned";
 			}
+
+			if (exp_snp_name == "unconditioned" && out_snp_name == "unconditioned")
+				continue;
 
 			mdata *matched_conditional;
 			if (exp_snp_name == "unconditioned")
