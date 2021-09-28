@@ -795,20 +795,17 @@ int reference::read_bedfile(string bedfile)
 #pragma omp parallel for
 	for (size_t j = 0; j < to_include_bim.size(); j++)
 	{
-#pragma omp critical
 		{
 			if (fseek64(bed, bed_offset + (to_include_bim[j] * sample_size), SEEK_SET) == 0) {
 				char *buf = new char[sample_size];
 				if (fread(buf, 1, sample_size, bed) == sample_size) {
-#pragma omp task
 					parse_bed_data(buf, to_include[j], read_individuals);
 
-					delete[] buf;
 				}
+				delete[] buf;
 			}
 		}
 	}
-#pragma omp taskwait
 #else
 	for (size_t j = 0; j < to_include_bim.size(); j++) {
 		if (fseek64(bed, bed_offset + (to_include_bim[j] * sample_size), SEEK_SET) != 0) {
