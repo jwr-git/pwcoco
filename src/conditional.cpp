@@ -913,7 +913,7 @@ void cond_analysis::sanitise_output(vector<size_t> &selected, vector<size_t> &re
 	size_t i = 0, j = 0, k;
 
 	filename = a_out + "." + get_cond_name();
-	filename = filename + "." + ref->bim_snp_name[to_include[selected[0]]] + ".cojo";
+	filename = filename + "." + ref->bim_snp_name[to_include[remain.back()]] + ".cojo";
 	ofstream ofile(filename.c_str());
 
 	if (!ofile) {
