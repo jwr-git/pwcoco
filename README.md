@@ -44,7 +44,7 @@ For acceptable formats for these files, please see below.
 **Optional**
 - `--log` - specifies log name, default is "pwcoco_log.txt" and will save in the same folder from where the program is run.
 - `--out` - prefix for the result files, default is "pwcoco_out".
-- `--p_cutoff` - P value cutoff for SNPs to be selected by the stepwise selection process, default is 5e-8. 
+- `--p_cutoff` - P value cutoff for SNPs to be selected by the stepwise selection process, default is 5e-8. Alternatively, the flags `--p_cutoff1` and `--p_cutoff2` may be used to specify dataset-specific P value cutoffs, relative to the order of the data given in the `--sum_stats` flags.
 - `--chr` - when reading the reference files, the program will limit the analysis to those SNPs on this chromosome. 
 - `--top_snp` - maximum number of SNPs that may be selected by the stepwise selection process, default is 1e10, i.e. a lot.
 - `--ld_window` - distance (in kb) that, when exceeded, is assumed for SNPs to be in total LE, default is 1e7.
@@ -112,5 +112,4 @@ The columns `freq`, `b`, `se` and `p` should be unaltered from the original data
 
 ## To Do
 - Provide example files.
-- Clean up input flags.
 - Improve output.

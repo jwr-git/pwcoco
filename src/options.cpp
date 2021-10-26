@@ -32,7 +32,8 @@ int main(int argc, char* argv[])
 	 */
 	unsigned short chr = 0;
 	int i = 0, threads = 8;
-	double p_cutoff = 5e-8, collinear = 0.9, maf = 0.1, ld_window = 1.0e7,
+	double p_cutoff1 = 5e-8, p_cutoff2 = 5e-8,
+		collinear = 0.9, maf = 0.1, ld_window = 1.0e7,
 		freq_threshold = 0.2, init_h4 = 80, top_snp = 1e10,
 		p1 = 1e-4, p2 = 1e-4, p3 = 1e-5,
 		n1 = 0.0, n2 = 0.0, n1_case = 0.0, n2_case = 0.0;
@@ -107,9 +108,19 @@ int main(int argc, char* argv[])
 			spdlog::info("--log {}.", log);
 		}
 		else if (opt == "--p_cutoff") {
-			p_cutoff = stod(argv[++i]);
+			p_cutoff1 = p_cutoff2 = stod(argv[++i]);
 
-			spdlog::info("--p_cutoff {}.", p_cutoff);
+			spdlog::info("--p_cutoff {}.", p_cutoff1);
+		}
+		else if (opt == "--p_cutoff1") {
+			p_cutoff1 = stod(argv[++i]);
+
+			spdlog::info("--p_cutoff1 {}.", p_cutoff1);
+		}
+		else if (opt == "--p_cutoff2") {
+			p_cutoff2 = stod(argv[++i]);
+
+			spdlog::info("--p_cutoff2 {}.", p_cutoff2);
 		}
 		else if (opt == "--out") {
 			out = argv[++i];
@@ -358,7 +369,7 @@ int main(int argc, char* argv[])
 			}
 
 			// Do the related conditional and colocalisation analyses
-			if (pwcoco_sub(exposure, outcome, ref, p_cutoff, collinear, ld_window, out, top_snp, freq_threshold, cond_ssize, out_cond, p1, p2, p3)) {
+			if (pwcoco_sub(exposure, outcome, ref, p_cutoff1, p_cutoff2, collinear, ld_window, out, top_snp, freq_threshold, cond_ssize, out_cond, p1, p2, p3)) {
 				continue;
 			}
 		}
@@ -401,7 +412,7 @@ int main(int argc, char* argv[])
 		}
 
 		// Do the related conditional and colocalisation analyses
-		if (pwcoco_sub(exposure, outcome, ref, p_cutoff, collinear, ld_window, out, top_snp, freq_threshold, cond_ssize, out_cond, p1, p2, p3)) {
+		if (pwcoco_sub(exposure, outcome, ref, p_cutoff1, p_cutoff2, collinear, ld_window, out, top_snp, freq_threshold, cond_ssize, out_cond, p1, p2, p3)) {
 			return 0;
 		}
 	}
@@ -444,7 +455,7 @@ int initial_coloc(phenotype *exposure, phenotype *outcome, string out, double p1
 /*
  * Common function to run the subsequent conditional and colocalisation analyses
  */
-int pwcoco_sub(phenotype *exposure, phenotype *outcome, reference *ref, double p_cutoff, double collinear, double ld_window, string out, double top_snp,
+int pwcoco_sub(phenotype *exposure, phenotype *outcome, reference *ref, double p_cutoff1, double p_cutoff2, double collinear, double ld_window, string out, double top_snp,
 	double freq_threshold, double cond_ssize, bool out_cond, double p1, double p2, double p3)
 {
 	// Holder for the conditional matrices
@@ -452,11 +463,11 @@ int pwcoco_sub(phenotype *exposure, phenotype *outcome, reference *ref, double p
 	conditional_dat *out_cdat = new conditional_dat();
 
 	// Find each independent SNPs for both exposure and outcome data
-	cond_analysis *exp_analysis = new cond_analysis(p_cutoff, collinear, ld_window, out, top_snp, freq_threshold, exposure->get_phenoname(), cond_ssize);
+	cond_analysis *exp_analysis = new cond_analysis(p_cutoff1, collinear, ld_window, out, top_snp, freq_threshold, exposure->get_phenoname(), cond_ssize);
 	exp_analysis->init_conditional(exposure, ref);
 	exp_analysis->find_independent_snps(exp_cdat, ref);
 
-	cond_analysis *out_analysis = new cond_analysis(p_cutoff, collinear, ld_window, out, top_snp, freq_threshold, outcome->get_phenoname(), cond_ssize);
+	cond_analysis *out_analysis = new cond_analysis(p_cutoff2, collinear, ld_window, out, top_snp, freq_threshold, outcome->get_phenoname(), cond_ssize);
 	out_analysis->init_conditional(outcome, ref);
 	out_analysis->find_independent_snps(out_cdat, ref);
 

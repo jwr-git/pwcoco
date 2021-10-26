@@ -539,7 +539,6 @@ void cond_analysis::massoc_conditional(const vector<size_t> &selected, vector<si
 		b[i] = ja_beta[selected[i]];
 		se[i] = ja_beta_se[selected[i]];
 	}
-	eigenVector bJ1 = cdat->B_N_i * cdat->D_N.asDiagonal() * b;
 
 	eigenVector Z_Bi(n), Z_Bi_temp(n);
 	bC = eigenVector::Zero(m);
