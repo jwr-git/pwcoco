@@ -42,6 +42,7 @@ int main(int argc, char* argv[])
 		out = "pwcoco_out", log = "pwcoco_log", snplist = "",
 		opt;
 	bool out_cond = false, cond_ssize = false,
+		verbose = false,
 		data_folder = false; // Whether the data is in folders or files
 
 	for (i = 1; i < argc; i++) {
@@ -217,6 +218,12 @@ int main(int argc, char* argv[])
 
 			spdlog::info("--threads {}.", threads);
 		}
+		else if (opt == "--verbose") {
+			verbose = true;
+			out_cond = true;
+
+			spdlog::info("--verbose.");
+		}
 	}
 
 	// First set up the logger
@@ -369,7 +376,7 @@ int main(int argc, char* argv[])
 			}
 
 			// Do the related conditional and colocalisation analyses
-			if (pwcoco_sub(exposure, outcome, ref, p_cutoff1, p_cutoff2, collinear, ld_window, out, top_snp, freq_threshold, cond_ssize, out_cond, p1, p2, p3)) {
+			if (pwcoco_sub(exposure, outcome, ref, p_cutoff1, p_cutoff2, collinear, ld_window, out, top_snp, freq_threshold, cond_ssize, out_cond, p1, p2, p3, verbose)) {
 				continue;
 			}
 		}
@@ -412,7 +419,7 @@ int main(int argc, char* argv[])
 		}
 
 		// Do the related conditional and colocalisation analyses
-		if (pwcoco_sub(exposure, outcome, ref, p_cutoff1, p_cutoff2, collinear, ld_window, out, top_snp, freq_threshold, cond_ssize, out_cond, p1, p2, p3)) {
+		if (pwcoco_sub(exposure, outcome, ref, p_cutoff1, p_cutoff2, collinear, ld_window, out, top_snp, freq_threshold, cond_ssize, out_cond, p1, p2, p3, verbose)) {
 			return 0;
 		}
 	}
@@ -456,18 +463,18 @@ int initial_coloc(phenotype *exposure, phenotype *outcome, string out, double p1
  * Common function to run the subsequent conditional and colocalisation analyses
  */
 int pwcoco_sub(phenotype *exposure, phenotype *outcome, reference *ref, double p_cutoff1, double p_cutoff2, double collinear, double ld_window, string out, double top_snp,
-	double freq_threshold, double cond_ssize, bool out_cond, double p1, double p2, double p3)
+	double freq_threshold, double cond_ssize, bool out_cond, double p1, double p2, double p3, bool verbose)
 {
 	// Holder for the conditional matrices
 	conditional_dat *exp_cdat = new conditional_dat();
 	conditional_dat *out_cdat = new conditional_dat();
 
 	// Find each independent SNPs for both exposure and outcome data
-	cond_analysis *exp_analysis = new cond_analysis(p_cutoff1, collinear, ld_window, out, top_snp, freq_threshold, exposure->get_phenoname(), cond_ssize);
+	cond_analysis *exp_analysis = new cond_analysis(p_cutoff1, collinear, ld_window, out, top_snp, freq_threshold, exposure->get_phenoname(), cond_ssize, verbose);
 	exp_analysis->init_conditional(exposure, ref);
 	exp_analysis->find_independent_snps(exp_cdat, ref);
 
-	cond_analysis *out_analysis = new cond_analysis(p_cutoff2, collinear, ld_window, out, top_snp, freq_threshold, outcome->get_phenoname(), cond_ssize);
+	cond_analysis *out_analysis = new cond_analysis(p_cutoff2, collinear, ld_window, out, top_snp, freq_threshold, outcome->get_phenoname(), cond_ssize, verbose);
 	out_analysis->init_conditional(outcome, ref);
 	out_analysis->find_independent_snps(out_cdat, ref);
 

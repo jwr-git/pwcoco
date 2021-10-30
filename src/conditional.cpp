@@ -3,7 +3,7 @@
 /*
  * cond_analysis constructor
  */
-cond_analysis::cond_analysis(double p_cutoff, double collinear, double ld_window, string out, double top_snp, double freq_thres, string name, bool cond_ssize)
+cond_analysis::cond_analysis(double p_cutoff, double collinear, double ld_window, string out, double top_snp, double freq_thres, string name, bool cond_ssize, bool verbose)
 {
 	cname = name;
 	a_out = out;
@@ -16,6 +16,7 @@ cond_analysis::cond_analysis(double p_cutoff, double collinear, double ld_window
 
 	num_snps = 0;
 	cond_ssize = cond_ssize;
+	verbose = verbose;
 }
 
 /*
@@ -34,6 +35,7 @@ cond_analysis::cond_analysis()
 
 	num_snps = 0;
 	cond_ssize = false;
+	verbose = false;
 }
 
 /*
@@ -143,7 +145,7 @@ void cond_analysis::match_gwas_phenotype(phenotype *pheno, reference *ref)
 		}
 	}
 
-	if (unmatched) {
+	if (unmatched && verbose) {
 		spdlog::info("[{}] There were {} SNPs that had a large difference in the allele frequency to that of the reference sample.", pheno->get_phenoname(), unmatched);
 		string filename = a_out + "." + pheno->get_phenoname() + ".badfreq";
 		ofstream file(filename.c_str());
@@ -200,14 +202,16 @@ void cond_analysis::match_gwas_phenotype(phenotype *pheno, reference *ref)
 		}
 	}
 
-	string filename = a_out + "." + pheno->get_phenoname() + ".included";
-	ofstream file(filename.c_str());
+	if (verbose) {
+		string filename = a_out + "." + pheno->get_phenoname() + ".included";
+		ofstream file(filename.c_str());
 
-	file << "SNP\tChisq\tB\tSE\tPval\tFreq" << endl;
-	for (size_t j = 0; j < ja_snp_name.size(); j++) {
-		file << ja_snp_name[j] << "\t" << ja_chisq[j] << "\t" << ja_beta[j] << "\t" << ja_beta_se[j] << "\t" << ja_pval[j] << "\t" << ja_freq[j] << endl;
+		file << "SNP\tChisq\tB\tSE\tPval\tFreq" << endl;
+		for (size_t j = 0; j < ja_snp_name.size(); j++) {
+			file << ja_snp_name[j] << "\t" << ja_chisq[j] << "\t" << ja_beta[j] << "\t" << ja_beta_se[j] << "\t" << ja_pval[j] << "\t" << ja_freq[j] << endl;
+		}
+		file.close();
 	}
-	file.close();
 }
 
 void cond_analysis::stepwise_select(vector<size_t> &selected, vector<size_t> &remain, conditional_dat *cdat, eigenVector &bC, eigenVector &bC_se, eigenVector &pC, reference *ref)

@@ -61,7 +61,7 @@ struct conditional_dat {
 
 class cond_analysis {
 public:
-	cond_analysis(double p_cutoff, double collinear, double ld_window, string out, double top_snp, double freq_thres, string name, bool cond_ssize);
+	cond_analysis(double p_cutoff, double collinear, double ld_window, string out, double top_snp, double freq_thres, string name, bool cond_ssize, bool verbose);
 	cond_analysis();
 
 	bool coloc_ready() {
@@ -156,6 +156,7 @@ private:
 	double a_p_cutoff;
 	double a_freq_threshold;
 	int num_snps;
+	bool verbose;
 
 	vector<size_t> to_include; /// SNP list to include in analysis after sanitising
 	vector<size_t> to_include_bim; /// SNP bim locations
