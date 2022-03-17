@@ -24,6 +24,10 @@ public:
 	void init_coloc(string snp1, string snp2, string exp, string out);
 
 	vector<double> pp_abf; // Results from colocalisation
+
+	int num_snps() {
+		return matched->snps1.size();
+	}
 	
 private:
 	bool perform_coloc();

@@ -78,7 +78,7 @@ public:
 
 	string get_ind_snp_name(size_t pos) {
 		try {
-			return ja_snp_name[ind_snps[pos]];
+			return ja_snp_name[ind_snps[pos]] + std::string(num_ind_snps == 1 ? "*" : "");
 		}
 		catch (...) {
 			cout << "Independent SNP index out of bound." << endl;

@@ -448,6 +448,12 @@ int initial_coloc(phenotype *exposure, phenotype *outcome, string out, double p1
 	// First pass through - match data and perform coloc
 	mdata *matched = new mdata(exposure, outcome);
 	coloc_analysis *initial_coloc = new coloc_analysis(matched, out, p1, p2, p3);
+
+	if (initial_coloc->num_snps() == 0) {
+		spdlog::info("Stopping algorthim as no SNPs included in initial colocalisation analysis.");
+		return 1;
+	}
+
 	initial_coloc->init_coloc(exposure->get_phenoname(), outcome->get_phenoname());
 
 	if (initial_coloc->pp_abf[H4] > init_h4) {
