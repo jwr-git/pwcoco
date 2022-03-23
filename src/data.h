@@ -156,7 +156,7 @@ public:
 	map<string, size_t> snp_map; /// Maps rsID/SNP identifer to vector position
 	vector<string> bim_allele1; /// A1
 	vector<string> bim_allele2; /// A2
-	vector<unsigned char> bim_chr; /// Chromosome
+	vector<unsigned short> bim_chr; /// Chromosome
 	vector<int> bim_bp; /// BP position
 	vector<size_t> bim_read_pos; /// Read position in the .bim file
 
@@ -164,7 +164,7 @@ public:
 	vector<string> bim_snp_name_m; /// Unaltered SNP names
 	vector<string> bim_allele1_m; /// A1
 	vector<string> bim_allele2_m; /// A2
-	vector<unsigned char> bim_chr_m; /// Chromosome
+	vector<unsigned short> bim_chr_m; /// Chromosome
 	vector<int> bim_bp_m; /// BP position
 
 	// From .fam

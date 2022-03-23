@@ -25,7 +25,7 @@ public:
 
 	vector<double> pp_abf; // Results from colocalisation
 
-	int num_snps() {
+	size_t num_snps() {
 		return matched->snps1.size();
 	}
 	

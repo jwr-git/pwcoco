@@ -364,7 +364,7 @@ void reference::match_bim(vector<string> &names, vector<string> &names2, bool ke
 	vector<string> bim_snp_name_t,
 		bim_allele1_t,
 		bim_allele2_t;
-	vector<unsigned char> bim_chr_t;
+	vector<unsigned short> bim_chr_t;
 	vector<int> bim_bp_t;
 	//vector<double> bim_genet_dst_t;
 	vector<signed long> r_positions, // Read positions in bim vectors
@@ -446,7 +446,7 @@ void reference::whole_bim()
 	vector<string> bim_snp_name_t,
 		bim_allele1_t,
 		bim_allele2_t;
-	vector<unsigned char> bim_chr_t;
+	vector<unsigned short> bim_chr_t;
 	vector<int> bim_bp_t;
 	//vector<double> bim_genet_dst_t;
 	vector<size_t> positions = bim_read_pos;
