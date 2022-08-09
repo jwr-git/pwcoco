@@ -1,7 +1,25 @@
 # Pair-Wise Conditional analysis and Colocalisation analysis (PWCoCo)
-A C++ implementation of the PWCoCo algorithm described by Zheng, et al in their paper, [Phenome-wide Mendelian randomization mapping the influence of the plasma proteome on complex diseases](https://doi.org/10.1038/s41588-020-0682-6). 
+A C++ implementation of the PWCoCo algorithm first described by Zheng, et al in their paper, [Phenome-wide Mendelian randomization mapping the influence of the plasma proteome on complex diseases](https://doi.org/10.1038/s41588-020-0682-6). 
 
 This tool integrates methods from [GCTA-COJO](https://cnsgenomics.com/software/gcta/#Overview) and the [coloc](https://chr1swallace.github.io/coloc/index.html) R package.
+
+## Citation
+
+Please cite our [pre-print](https://doi.org/10.1101/2022.08.08.503158)!
+
+```
+@article {Robinson2022.08.08.503158,
+	author = {Robinson, Jamie W and Hemani, Gibran and Babaei, Mahsa Sheikhali and Huang, Yunfeng and Baird, Denis A and Tsai, Ellen A and Chen, Chia-Yen and Gaunt, Tom R and Zheng, Jie},
+	title = {An efficient and robust tool for colocalisation: Pair-wise Conditional and Colocalisation (PWCoCo)},
+	elocation-id = {2022.08.08.503158},
+	year = {2022},
+	doi = {10.1101/2022.08.08.503158},
+	publisher = {Cold Spring Harbor Laboratory},
+	URL = {https://www.biorxiv.org/content/early/2022/08/08/2022.08.08.503158},
+	eprint = {https://www.biorxiv.org/content/early/2022/08/08/2022.08.08.503158.full.pdf},
+	journal = {bioRxiv}
+}
+```
 
 ## Requirements
 - C++17 or newer
