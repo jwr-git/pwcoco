@@ -34,12 +34,11 @@ class cond_analysis;
 
 class phenotype {
 public:
-	phenotype(string name, double n, double n_case);
+	phenotype(string name, double n, double n_case, double pve, string pve_file);
 	phenotype();
 
 	void read_phenofile(string filename);
 	void phenotype_clear();
-	double calc_variance(vector<size_t> idx);
 
 	string get_phenoname() {
 		return pheno_name;
@@ -77,6 +76,8 @@ public:
 	vector<size_t> matched_idx; /// Indicies of SNPs that have been matched
 
 private:
+	void calc_pheno_variance(string pve_file);
+
 	string pheno_name;
 	double pheno_variance; /// Estimated phenotypic variance from summary stats
 	double n_from_cmd; /// N passed from command line
@@ -86,7 +87,7 @@ private:
 	coloc_type ctype; // Type of coloc to use: cc or quant
 };
 
-phenotype *init_pheno(string filename, string pheno_name, double n, double n_case);
+phenotype *init_pheno(string filename, string pheno_name, double n, double n_case, double pve, string pve_file);
 
 class mdata {
 public:

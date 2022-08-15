@@ -3,14 +3,24 @@
 /*
  * Phenotype constructor
  */
-phenotype::phenotype(string name, double n, double n_case)
+phenotype::phenotype(string name, double n, double n_case, double pve, string pve_file)
 {
 	pheno_name = name;
-	pheno_variance = 0;
+	pheno_variance = pve;
 	failed = false;
 	ctype = coloc_type::COLOC_NONE;
 	n_from_cmd = n;
 	n_case_from_cmd = n_case;
+
+	if (pve > 0.0) {
+		pheno_variance = pve;
+	}
+	else if (pve_file.compare("") == 0) {
+		calc_pheno_variance(pve_file);
+	}
+	else {
+		pheno_variance = -1.0;
+	}
 }
 
 /*
@@ -61,9 +71,9 @@ void phenotype::phenotype_clear()
  * names are flexible.
  * @ret void
  */
-phenotype *init_pheno(string filename, string pheno_name, double n, double n_case)
+phenotype *init_pheno(string filename, string pheno_name, double n, double n_case, double pve, string pve_file)
 {
-	phenotype *pheno = new phenotype(pheno_name, n, n_case);
+	phenotype *pheno = new phenotype(pheno_name, n, n_case, pve, pve_file);
 	pheno->read_phenofile(filename);
 	return pheno;
 }
@@ -74,9 +84,9 @@ phenotype *init_pheno(string filename, string pheno_name, double n, double n_cas
  * This is done by matching SNPs from the phenotype to the genotype based on alleles.
  * This means the data all MUST use the same genomic build. If the SNP in the phenotype file is not found, then it will
  * be output in a file for the user to use as they want.
- * @param cond_analysis *p_analysis Class of current conditional analysis
- * @param phenotype *pheno The phenotype that is being currently read
  * @param string filename Path to the phenotype file
+ * @param double Phenotype variance (optional)
+ * @param string Filename of full summary statistics for calculating phenotype variance (optional)
  * @ret void
  */
 void phenotype::read_phenofile(string filename)
@@ -85,7 +95,7 @@ void phenotype::read_phenofile(string filename)
 	map<string, int>::iterator iter;
 	int count = 0;
 	double h = 0.0, Vp = 0.0;
-	bool delim_found = false, n_warning = false;
+	bool delim_found = false, n_warning = false, pve_warning = false;
 	char sep = '\t';
 
 	// Buffers
@@ -109,7 +119,7 @@ void phenotype::read_phenofile(string filename)
 
 		// Replace buffers
 		snp_name_buf = allele1_buf = allele2_buf = "";
-		beta_buf = se_buf = pval_buf = n_buf = nc_buf = 0.0; 
+		beta_buf = se_buf = pval_buf = n_buf = nc_buf = 0.0;
 		freq_buf = -1;
 
 		// Check delimiter
@@ -210,13 +220,21 @@ void phenotype::read_phenofile(string filename)
 		n_case.push_back(s); // n_case will contain proportion of cases to total sample size
 
 		// Calculate variance of phenotype
-		h = 2.0 * freq[count] * (1.0 - freq[count]);
-		Vp = h * n[count] * se[count] * se[count] + h * beta[count] * beta[count] * n[count] / (n[count] - 1.0);
-		if (Vp < 0.0) {
-			spdlog::critical("Error in reading phenotype file {}: variance is less than zero (Vp = {:.2f}).", filename, Vp);
-			failed = true;
+		if (pheno_variance < 0.0) {
+			if (!pve_warning) {
+				spdlog::warn("It is preferable to use the full summary statistics to estimate the phenotype variance; you can ignore this warning if the summary statistics file you have provided are the full summary statistics.");
+				spdlog::warn("You can calculate the full phenotype variance by using either the '--pve' flag or '--pve_file' flag.");
+				pve_warning = true;
+			}
+
+			h = 2.0 * freq[count] * (1.0 - freq[count]);
+			Vp = h * n[count] * se[count] * se[count] + h * beta[count] * beta[count] * n[count] / (n[count] - 1.0);
+			if (Vp < 0.0) {
+				spdlog::critical("Error in reading phenotype file {}: variance is less than zero (Vp = {:.2f}).", filename, Vp);
+				failed = true;
+			}
+			Vp_v.push_back(Vp);
 		}
-		Vp_v.push_back(Vp);
 
 		count++;
 	}
@@ -226,24 +244,114 @@ void phenotype::read_phenofile(string filename)
 	}
 
 	pfile.close();
-	pheno_variance = v_calc_median(Vp_v);
+	if (pheno_variance < 0.0) {
+		pheno_variance = v_calc_median(Vp_v);
+	}
 
 	spdlog::info("Read a total of: {} lines in phenotype file {}.", snp_name.size(), filename);
 	spdlog::info("Phenotypic variance estimated from summary statistcs of all SNPs: {:.2f}", pheno_variance);
 }
 
 /*
- * Force calculates the Phenotypic variance
+ * Calculates the Phenotypic variance from full summary statistics.
+ * @param string Filename to full summary statistics to calculate phenotypic variance from.
  */
-double phenotype::calc_variance(vector<size_t> idx)
+void phenotype::calc_pheno_variance(string pve_file)
 {
-	vector<double> Vp_temp;
-	for (auto &i : idx) {
-		Vp_temp.push_back(Vp_v[i]);
+	string line;
+	map<string, int>::iterator iter;
+	int count = 0;
+	double h = 0.0, Vp = 0.0;
+	bool delim_found = false, n_warning = false, pve_warning = false;
+	char sep = '\t';
+
+	// Buffers
+	double freq_buf = -1.0, beta_buf = 0.0, se_buf = 0.0, n_buf = 0.0;
+
+	ifstream pfile(pve_file.c_str());
+	if (!pfile) {
+		spdlog::critical("File cannot be opened for reading: {}.", pve_file);
+		failed = true;
+		return;
 	}
-	pheno_variance = v_calc_median(Vp_temp);
-	spdlog::info("New phenotypic variances estimated from SNPs included in analysis is: {:.2f}.", pheno_variance);
-	return pheno_variance;
+	spdlog::info("Reading data and calculating phenotype variance from file: {}.", pve_file);
+
+	// Iterate through file and save data
+	while (getline(pfile, line)) {
+		istringstream ss(line);
+		string substr;
+		int tab = 0;
+
+		// Replace buffers
+		beta_buf = se_buf = n_buf = 0.0;
+		freq_buf = -1;
+
+		// Check delimiter
+		if (ss.str().find('\t', 0) != string::npos) {
+			sep = '\t';
+			delim_found = true;
+		}
+		else if (ss.str().find(',', 0) != string::npos) {
+			sep = ',';
+			delim_found = true;
+		}
+		else if (ss.str().find(' ', 0) != string::npos) {
+			sep = ' ';
+			delim_found = true;
+		}
+
+		if (!delim_found) {
+			spdlog::critical("Cannot determine delimiter for file \"{}\". Use either tab, comma or space-delimited.", pve_file);
+			failed = true;
+			return;
+		}
+
+		while (getline(ss, substr, sep)) {
+			if (string2upper(substr) == "SNP") // Skip header
+				break;
+
+			switch (tab) {
+			case 3: // Fourth column contains allele frequency of A1
+				checkEntry(substr, &freq_buf);
+				break;
+			case 4: // Fifth column contains beta
+				checkEntry(substr, &beta_buf);
+				break;
+			case 5: // Sixth column contains SE
+				checkEntry(substr, &se_buf);
+				break;
+			case 7: // Eighth column contains N total
+				checkEntry(substr, &n_buf);
+				if (n_buf && n_from_cmd && !n_warning) {
+					n_warning = true;
+					spdlog::warn("N is given at command line (n = {}) but the file also contains these values. Using values from command line instead.", n_from_cmd);
+				}
+				break;
+			}
+			tab++;
+		}
+		if (se_buf == 0.0 || se_buf == 1.0
+			|| freq_buf == -1.0 || beta_buf == 1.0)
+			continue;
+
+		if (n_from_cmd) {
+			n_buf = n_from_cmd;
+		}
+
+		// Calculate variance of phenotype
+		h = 2.0 * freq_buf * (1.0 - freq_buf);
+		Vp = h * n_buf * se_buf * se_buf + h * beta_buf * beta_buf * n_buf / (n_buf - 1.0);
+		if (Vp < 0.0) {
+			spdlog::critical("Error in reading phenotype file {}: variance is less than zero (Vp = {:.2f}).", pve_file, Vp);
+			failed = true;
+		}
+		Vp_v.push_back(Vp);
+	}
+
+	pfile.close();
+	pheno_variance = v_calc_median(Vp_v);
+
+	spdlog::info("Phenotypic variance estimated from summary statistcs of all SNPs: {:.2f}", pheno_variance);
 }
 
 /*

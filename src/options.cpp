@@ -36,10 +36,12 @@ int main(int argc, char* argv[])
 		collinear = 0.9, maf = 0.1, ld_window = 1.0e7,
 		freq_threshold = 0.2, init_h4 = 80, top_snp = 1e10,
 		p1 = 1e-4, p2 = 1e-4, p3 = 1e-5,
-		n1 = 0.0, n2 = 0.0, n1_case = 0.0, n2_case = 0.0;
+		n1 = 0.0, n2 = 0.0, n1_case = 0.0, n2_case = 0.0,
+		pve1 = 0.0, pve2 = 0.0;
 	string bfile = "", bim_file = "", fam_file = "", bed_file = "",
 		phen1_file = "", phen2_file = "",
 		out = "pwcoco_out", log = "pwcoco_log", snplist = "",
+		pve_file1 = "", pve_file2 = "",
 		opt;
 	bool out_cond = false, cond_ssize = false,
 		verbose = false,
@@ -69,6 +71,16 @@ int main(int argc, char* argv[])
 			phen2_file = argv[++i];
 
 			spdlog::info("Using {} summary statistic 2 files or folders.", phen2_file);
+		}
+		else if (opt == "--pve_file1") {
+			pve_file1 = argv[++i];
+
+			spdlog::info("Calculating phenotypic variance from {}.", pve_file1);
+		}
+		else if (opt == "--pve_file2") {
+			pve_file2 = argv[++i];
+
+			spdlog::info("Calculating phenotypic variance from {}.", pve_file2);
 		}
 
 		else if (opt == "--n1") {
@@ -224,6 +236,16 @@ int main(int argc, char* argv[])
 
 			spdlog::info("--verbose.");
 		}
+		else if (opt == "--pve1") {
+			pve1 = stoi(argv[++i]);
+
+			spdlog::info("--pve1 {}.", pve1);
+		}
+		else if (opt == "--pve2") {
+			pve2 = stoi(argv[++i]);
+
+			spdlog::info("--pve2 {}.", pve2);
+		}
 	}
 
 	// First set up the logger
@@ -329,8 +351,8 @@ int main(int argc, char* argv[])
 				path_to_file1{ dir_entry.path().u8string() },
 				path_to_file2 = phen2_file + "/" + filename;
 
-			phenotype *exposure = init_pheno(path_to_file1, filename + ".exp", n1, n1_case);
-			phenotype *outcome = init_pheno(path_to_file2, filename + ".out", n2, n2_case);
+			phenotype *exposure = init_pheno(path_to_file1, filename + ".exp", n1, n1_case, pve1, pve_file1);
+			phenotype *outcome = init_pheno(path_to_file2, filename + ".out", n2, n2_case, pve2, pve_file2);
 			if (exposure->has_failed() || outcome->has_failed()) {
 				spdlog::error("Reading of either summary statistic files has failed; have these been moved or altered?");
 				spdlog::error("File 1: {}", path_to_file1);
@@ -384,8 +406,8 @@ int main(int argc, char* argv[])
 	else {
 		// Case 2
 		// Files were given
-		phenotype *exposure = init_pheno(phen1_file, fs::path(phen1_file).filename().string(), n1, n1_case);
-		phenotype *outcome = init_pheno(phen2_file, fs::path(phen2_file).filename().string(), n2, n2_case);
+		phenotype *exposure = init_pheno(phen1_file, fs::path(phen1_file).filename().string(), n1, n1_case, pve1, pve_file1);
+		phenotype *outcome = init_pheno(phen2_file, fs::path(phen2_file).filename().string(), n2, n2_case, pve2, pve_file2);
 		if (exposure->has_failed() || outcome->has_failed()) {
 			spdlog::critical("Reading of either summary statistic files has failed; have these been moved or altered?");
 			return 1;
