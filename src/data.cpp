@@ -15,7 +15,7 @@ phenotype::phenotype(string name, double n, double n_case, double pve, string pv
 	if (pve > 0.0) {
 		pheno_variance = pve;
 	}
-	else if (pve_file.compare("") == 0) {
+	else if (pve_file.compare("") != 0) {
 		calc_pheno_variance(pve_file);
 	}
 	else {
@@ -29,7 +29,7 @@ phenotype::phenotype(string name, double n, double n_case, double pve, string pv
 phenotype::phenotype()
 {
 	pheno_name = "";
-	pheno_variance = 0;
+	pheno_variance = -1.0;
 	failed = false;
 	ctype = coloc_type::COLOC_NONE;
 	n_from_cmd = 0;
@@ -39,7 +39,7 @@ phenotype::phenotype()
 void phenotype::phenotype_clear()
 {
 	pheno_name = "";
-	pheno_variance = 0;
+	pheno_variance = -1.0;
 	failed = false;
 	ctype = coloc_type::COLOC_NONE;
 	n_from_cmd = 0;
@@ -102,7 +102,7 @@ void phenotype::read_phenofile(string filename)
 	string snp_name_buf, allele1_buf, allele2_buf;
 	double freq_buf = -1.0, beta_buf, se_buf = 0.0, pval_buf, n_buf = 0.0, nc_buf = 0.0, s;
 
-	ifstream pfile(filename.c_str());
+	ifstream pfile(filename);
 	if (!pfile) {
 		spdlog::critical("Phenotype file cannot be opened for reading: {}.", filename);
 		failed = true;
@@ -268,7 +268,7 @@ void phenotype::calc_pheno_variance(string pve_file)
 	// Buffers
 	double freq_buf = -1.0, beta_buf = 0.0, se_buf = 0.0, n_buf = 0.0;
 
-	ifstream pfile(pve_file.c_str());
+	ifstream pfile(pve_file);
 	if (!pfile) {
 		spdlog::critical("File cannot be opened for reading: {}.", pve_file);
 		failed = true;
@@ -411,7 +411,7 @@ int reference::read_bimfile(string bimfile)
 	start_snps = end_snps = -1;
 
 	// Prepare for bim reading
-	ifstream bim(bimfile.c_str());
+	ifstream bim(bimfile);
 	if (bim.fail()) {
 		spdlog::critical("Bim file cannot be opened for reading: {}.", bimfile);
 		failed = true;
@@ -680,7 +680,7 @@ int reference::read_famfile(string famfile)
 	int count = 0;
 
 	// Prepare for bim reading
-	ifstream fam(famfile.c_str());
+	ifstream fam(famfile);
 	if (!fam) {
 		spdlog::critical("Fam file cannot be opened for reading: {}.", famfile);
 		failed = true;
@@ -842,7 +842,7 @@ void reference::parse_bed_data(char *buf, size_t snp_idx, vector<int> read_indiv
 				snp_1[snp_idx][ind_idx] = (bool)b1;
 
 				// Frequency
-				if (!b1 || b2) {
+				if (!b1 || b2) { // i.e. no missing genotype (coded as "10")
 					double f = b1 + b2;
 					if (bim_allele2[snp_idx] == ref_A[snp_idx]) {
 						f = 2.0 - f;

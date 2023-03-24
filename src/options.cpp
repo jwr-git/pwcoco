@@ -37,7 +37,7 @@ int main(int argc, char* argv[])
 		freq_threshold = 0.2, init_h4 = 80, top_snp = 1e10,
 		p1 = 1e-4, p2 = 1e-4, p3 = 1e-5,
 		n1 = 0.0, n2 = 0.0, n1_case = 0.0, n2_case = 0.0,
-		pve1 = 0.0, pve2 = 0.0;
+		pve1 = -1.0, pve2 = -1.0;
 	string bfile = "", bim_file = "", fam_file = "", bed_file = "",
 		phen1_file = "", phen2_file = "",
 		out = "pwcoco_out", log = "pwcoco_log", snplist = "",
