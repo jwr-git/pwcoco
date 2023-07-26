@@ -202,16 +202,16 @@ void cond_analysis::match_gwas_phenotype(phenotype *pheno, reference *ref)
 		}
 	}
 
-	if (verbose) {
-		string filename = a_out + "." + pheno->get_phenoname() + ".included";
-		ofstream file(filename);
+	//if (out_cond) {
+	string filename = a_out + "." + pheno->get_phenoname() + ".included";
+	ofstream file(filename);
 
-		file << "SNP\tChisq\tB\tSE\tPval\tFreq" << endl;
-		for (size_t j = 0; j < ja_snp_name.size(); j++) {
-			file << ja_snp_name[j] << "\t" << ja_chisq[j] << "\t" << ja_beta[j] << "\t" << ja_beta_se[j] << "\t" << ja_pval[j] << "\t" << ja_freq[j] << endl;
-		}
-		file.close();
+	file << "SNP\tBP\tChisq\tB\tSE\tPval\tFreq" << endl;
+	for (size_t j = 0; j < ja_snp_name.size(); j++) {
+		file << ja_snp_name[j] << "\t" << ref->bim_bp[to_include[j]] << "\t" << ja_chisq[j] << "\t" << ja_beta[j] << "\t" << ja_beta_se[j] << "\t" << ja_pval[j] << "\t" << ja_freq[j] << endl;
 	}
+	file.close();
+	//}
 }
 
 void cond_analysis::stepwise_select(vector<size_t> &selected, vector<size_t> &remain, conditional_dat *cdat, eigenVector &bC, eigenVector &bC_se, eigenVector &pC, reference *ref)
@@ -946,7 +946,7 @@ void cond_analysis::sanitise_output(vector<size_t> &selected, vector<size_t> &re
 
 		// LD structure
 		for (k = 0; k < selected.size(); k++) {
-			ofile << "\t" << ld(i, k) * ld(i, k);
+			ofile << "\t" << ld(i, k) * ld(i, k); // To get r2
 		}
 		ofile << endl;
 	}
