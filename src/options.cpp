@@ -10,20 +10,15 @@
 
 int main(int argc, char* argv[])
 {
-	spdlog::info(" ****************************************************************************************************");
-	spdlog::info(" *                                             _..._       .-'''-.           _..._       .-'''-.    *");
-	spdlog::info(" *                                          .-'_..._''.   '   _    \\      .-'_..._''.   '   _    \\  *");
-	spdlog::info(" * _________   _...._                     .' .'      '.\\/   /` '.   \\   .' .'      '.\\/   /` '.   \\ *");
-	spdlog::info(" * \\        |.'      '-.         _     _ / .'          .   |     \\  '  / .'          .   |     \\  ' *");
-	spdlog::info(" *  \\        .'```'.    '. /\\    \\\\   //. '            |   '      |  '. '            |   '      |  '*");
-	spdlog::info(" *   \\      |       \\     \\`\\\\  //\\\\ // | |            \\    \\     / / | |            \\    \\     / / *");
-	spdlog::info(" *    |     |        |    |  \\`//  \\'/  | |             `.   ` ..' /  | |             `.   ` ..' /  *");
-	spdlog::info(" *    |      \\      /    .    \\|   |/   . '                '-...-'`   . '                '-...-'`   *");
-	spdlog::info(" *    |     |\\`'-.-'   .'      '         \\ '.          .               \\ '.          .              *");
-	spdlog::info(" *    |     | '-....-'`                   '. `._____.-'/                '. `._____.-'/              *");
-	spdlog::info(" *   .'     '.                              `-.______ /                   `-.______ /               *");
-	spdlog::info(" * '-----------'                                     `                             `                *");
-	spdlog::info(" ****************************************************************************************************");
+	spdlog::info(" ****************************************");
+	spdlog::info(" *______ _    _ _____       _____       *");
+	spdlog::info(" *| ___ \\ |  | /  __ \\     /  __ \\      *");
+	spdlog::info(" *| |_/ / |  | | /  \\/ ___ | /  \\/ ___  *");
+	spdlog::info(" *|  __/| |/\\| | |    / _ \\| |    / _ \\ *");
+	spdlog::info(" *| |   \\  /\\  / \\__/\\ (_) | \\__/\\ (_) |*");
+	spdlog::info(" *\\_|    \\/  \\/ \\____/\\___/ \\____/\\___/ *");
+	spdlog::info(" *                                      *");
+	spdlog::info(" ****************************************");
 
 	spdlog::info("!! Remember to periodically 'git pull' in your PWCoCo directory to obtain the latest updates and bug fixes !!");
 
@@ -49,6 +44,60 @@ int main(int argc, char* argv[])
 
 	for (i = 1; i < argc; i++) {
 		opt = argv[i];
+
+		if (opt == "--help") {
+			spdlog::info("Usage: pwcoco [options]");
+			spdlog::info("");
+			spdlog::info("Please remember to periodically check for new updates using git pull!");
+			spdlog::info("More information about these flags and how to use PWCoCo can be found on GitHub:");
+			spdlog::info("https://github.com/jwr-git/pwcoco");
+			spdlog::info("");
+			spdlog::info("Required flags:");
+			spdlog::info("	--bfile                    Location to the reference data in Plink (bed/bim/fam) format.");
+			spdlog::info("	                           Do not include the file ending name.");
+			spdlog::info("	                           Each file requires the same name and be in the same directory.");
+			spdlog::info("");
+			spdlog::info("	--sum_stats1, sum_stats2   Location to the first file or folder containing summary statistics.");
+			spdlog::info("");
+			spdlog::info("Optional flags:");
+			spdlog::info("	--pve_file1, pve_file2     Files from which to calculate the phenotypic variance for the summary statistics.");
+			spdlog::info("");
+			spdlog::info("	--pve1, pve2               If the phenotypic variance has already been calculated, you can specify it directly here.");
+			spdlog::info("");
+			spdlog::info("	--log                      Specify log name; default is 'pwcoco_log.txt' and will save in the current directory.");
+			spdlog::info("");
+			spdlog::info("	--out                      Prefix for all output files for this analysis.");
+			spdlog::info("");
+			spdlog::info("	--p_cutoff                 P value cutoff for SNPs to be selected by the stepwise selection process; default is 5e-8.");
+			spdlog::info("	                           Alternatively, --p_cutoff1 and --p_cutoff2 can specify dataset-specific P value cutoffs.");
+			spdlog::info("");
+			spdlog::info("	--chr                      Limit the reference data to reading only this chromosome.");
+			spdlog::info("");
+			spdlog::info("	--top_snp                  Maximum number of SNPs that can be selected by the stepwise selection process; default 1e10.");
+			spdlog::info("");
+			spdlog::info("	--ld_window                Distance in kb that is assumed for SNPs to be in total linkage equilibrium; default is 1e7.");
+			spdlog::info("");
+			spdlog::info("	--collinear                Threshold that determines if SNPs are collinear; default is 0.9.");
+			spdlog::info("");
+			spdlog::info("	--maf                      Filters SNPs from the reference dataset according to this threshold; default is 0.1.");
+			spdlog::info("");
+			spdlog::info("	--freq_threshold           Exclude SNPs with an allele frequency difference between the sum stats and the reference data");
+			spdlog::info("	                           greater than this threshold; default is 0.2.");
+			spdlog::info("");
+			spdlog::info("	--init_h4                  Treshold to termine the program early if the initial colocalisation H4 is higher than this; default 80.");
+			spdlog::info("");
+			spdlog::info("	--out_cond                 Flag to turn on extra files to be output corresponding to the conditioned data.");
+			spdlog::info("");
+			spdlog::info("	--coloc_pp                 Specify the three prior probabilities; default 1e-4, 1e-4 and 1e-5.");
+			spdlog::info("");
+			spdlog::info("	--n1, n2                   Specify the sample size for summary statistics.");
+			spdlog::info("");
+			spdlog::info("	--n1_case, n2_case         Specific the number of cases for summary statistics.");
+			spdlog::info("");
+			spdlog::info("	--threads                  Number of threads available for OpenMP multi-threaded functions; default is 8.");
+			spdlog::info("");
+			spdlog::info("	--verbose                  Output extra files and messages for debugging purposes.");
+		}
 
 		if (opt == "--bfile") {
 			bfile = argv[++i];
