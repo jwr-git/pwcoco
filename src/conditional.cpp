@@ -148,7 +148,7 @@ void cond_analysis::match_gwas_phenotype(phenotype *pheno, reference *ref)
 	if (unmatched && verbose) {
 		spdlog::info("[{}] There were {} SNPs that had a large difference in the allele frequency to that of the reference sample.", pheno->get_phenoname(), unmatched);
 		string filename = a_out + "." + pheno->get_phenoname() + ".badfreq";
-		ofstream file(filename.c_str());
+		ofstream file(filename);
 
 		file << "SNP\tAllele1\tAllele2\tRefA\tfreq_ref\tfreq_pheno" << endl;
 		for (i = 0; i < bad_idx.size(); i++) {
@@ -202,16 +202,16 @@ void cond_analysis::match_gwas_phenotype(phenotype *pheno, reference *ref)
 		}
 	}
 
-	if (verbose) {
-		string filename = a_out + "." + pheno->get_phenoname() + ".included";
-		ofstream file(filename.c_str());
+	//if (out_cond) {
+	string filename = a_out + "." + pheno->get_phenoname() + ".included";
+	ofstream file(filename);
 
-		file << "SNP\tChisq\tB\tSE\tPval\tFreq" << endl;
-		for (size_t j = 0; j < ja_snp_name.size(); j++) {
-			file << ja_snp_name[j] << "\t" << ja_chisq[j] << "\t" << ja_beta[j] << "\t" << ja_beta_se[j] << "\t" << ja_pval[j] << "\t" << ja_freq[j] << endl;
-		}
-		file.close();
+	file << "SNP\tBP\tChisq\tB\tSE\tPval\tFreq" << endl;
+	for (size_t j = 0; j < ja_snp_name.size(); j++) {
+		file << ja_snp_name[j] << "\t" << ref->bim_bp[to_include[j]] << "\t" << ja_chisq[j] << "\t" << ja_beta[j] << "\t" << ja_beta_se[j] << "\t" << ja_pval[j] << "\t" << ja_freq[j] << endl;
 	}
+	file.close();
+	//}
 }
 
 void cond_analysis::stepwise_select(vector<size_t> &selected, vector<size_t> &remain, conditional_dat *cdat, eigenVector &bC, eigenVector &bC_se, eigenVector &pC, reference *ref)
@@ -797,6 +797,7 @@ void cond_analysis::pw_conditional(int pos, bool out_cond, conditional_dat *cdat
 	if (ctype == coloc_type::COLOC_CC)
 		s_cond.clear();
 
+	/*
 	for (size_t i = 0; i < selected.size(); i++) {
 		size_t j = selected[i];
 		snps_cond.push_back(ref->bim_snp_name[to_include[j]]);
@@ -815,6 +816,7 @@ void cond_analysis::pw_conditional(int pos, bool out_cond, conditional_dat *cdat
 				s_cond.push_back(ncases[j]);
 		}
 	}
+	*/
 
 	for (size_t i = 0; i < remain.size(); i++) {
 		size_t j = remain[i];
@@ -917,7 +919,7 @@ void cond_analysis::sanitise_output(vector<size_t> &selected, vector<size_t> &re
 
 	filename = a_out + "." + get_cond_name();
 	filename = filename + "." + ref->bim_snp_name[to_include[remain.back()]] + ".cojo";
-	ofstream ofile(filename.c_str());
+	ofstream ofile(filename);
 
 	if (!ofile) {
 		spdlog::warn("Cannot open file {} for writing.", filename);
@@ -944,7 +946,7 @@ void cond_analysis::sanitise_output(vector<size_t> &selected, vector<size_t> &re
 
 		// LD structure
 		for (k = 0; k < selected.size(); k++) {
-			ofile << "\t" << ld(i, k) * ld(i, k);
+			ofile << "\t" << ld(i, k) * ld(i, k); // To get r2
 		}
 		ofile << endl;
 	}
