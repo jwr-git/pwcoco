@@ -3,7 +3,7 @@
 /*
  * Phenotype constructor
  */
-phenotype::phenotype(string name, double n, double n_case, double pve, string pve_file)
+phenotype::phenotype(string name, double n, double n_case, double pve, bool no_freq, string pve_file)
 {
 	pheno_name = name;
 	pheno_variance = pve;
@@ -11,6 +11,7 @@ phenotype::phenotype(string name, double n, double n_case, double pve, string pv
 	ctype = coloc_type::COLOC_NONE;
 	n_from_cmd = n;
 	n_case_from_cmd = n_case;
+	no_freq = no_freq;
 
 	if (pve > 0.0) {
 		pheno_variance = pve;
@@ -34,6 +35,7 @@ phenotype::phenotype()
 	ctype = coloc_type::COLOC_NONE;
 	n_from_cmd = 0;
 	n_case_from_cmd = 0;
+	no_freq = false;
 }
 
 void phenotype::phenotype_clear()
@@ -44,6 +46,7 @@ void phenotype::phenotype_clear()
 	ctype = coloc_type::COLOC_NONE;
 	n_from_cmd = 0;
 	n_case_from_cmd = 0;
+	no_freq = false;
 
 	vector<string>().swap(snp_name);
 	vector<string>().swap(allele1);
@@ -71,9 +74,9 @@ void phenotype::phenotype_clear()
  * names are flexible.
  * @ret void
  */
-phenotype *init_pheno(string filename, string pheno_name, double n, double n_case, double pve, string pve_file)
+phenotype *init_pheno(string filename, string pheno_name, double n, double n_case, double pve, bool no_freq, string pve_file)
 {
-	phenotype *pheno = new phenotype(pheno_name, n, n_case, pve, pve_file);
+	phenotype *pheno = new phenotype(pheno_name, n, n_case, pve, no_freq, pve_file);
 	pheno->read_phenofile(filename);
 	return pheno;
 }
@@ -94,8 +97,7 @@ void phenotype::read_phenofile(string filename)
 	string line;
 	map<string, int>::iterator iter;
 	int count = 0;
-	double h = 0.0, Vp = 0.0;
-	bool delim_found = false, n_warning = false, pve_warning = false;
+	bool delim_found = false, n_warning = false;
 	char sep = '\t';
 
 	// Buffers
@@ -162,6 +164,11 @@ void phenotype::read_phenofile(string filename)
 					allele2_buf = string2upper(substr);
 				break;
 			case 3: // Fourth column contains allele frequency of A1
+				if (no_freq) {
+					freq_buf = -2.0;
+					break;
+				}
+
 				checkEntry(substr, &freq_buf);
 				break;
 			case 4: // Fifth column contains beta
@@ -219,23 +226,6 @@ void phenotype::read_phenofile(string filename)
 		}
 		n_case.push_back(s); // n_case will contain proportion of cases to total sample size
 
-		// Calculate variance of phenotype
-		if (pheno_variance < 0.0) {
-			if (!pve_warning) {
-				spdlog::warn("It is preferable to use the full summary statistics to estimate the phenotype variance; you can ignore this warning if the summary statistics file you have provided are the full summary statistics.");
-				spdlog::warn("You can calculate the full phenotype variance by using either the '--pve' flag or '--pve_file' flag.");
-				pve_warning = true;
-			}
-
-			h = 2.0 * freq[count] * (1.0 - freq[count]);
-			Vp = h * n[count] * se[count] * se[count] + h * beta[count] * beta[count] * n[count] / (n[count] - 1.0);
-			if (Vp < 0.0) {
-				spdlog::critical("Error in reading phenotype file {}: variance is less than zero (Vp = {:.2f}).", filename, Vp);
-				failed = true;
-			}
-			Vp_v.push_back(Vp);
-		}
-
 		count++;
 	}
 
@@ -244,29 +234,79 @@ void phenotype::read_phenofile(string filename)
 	}
 
 	pfile.close();
-	if (pheno_variance < 0.0) {
-		pheno_variance = v_calc_median(Vp_v);
-	}
 
 	spdlog::info("Read a total of: {} lines in phenotype file {}.", snp_name.size(), filename);
+}
+
+/* Calculates the phenotypic variance
+ * @param string Filename from which the summary statistics are being read
+ */
+void phenotype::calc_pheno_variance(string filename)
+{
+	double h = 0.0, Vp = 0.0;
+
+	// Calculate variance of phenotype
+	if (pheno_variance < 0.0) {
+		spdlog::warn("It is preferable to use the full summary statistics to estimate the phenotype variance; you can ignore this warning if the summary statistics file you have provided are the full summary statistics.");
+		spdlog::warn("You can calculate the full phenotype variance by using either the '--pve' flag or '--pve_file' flag.");
+	}
+
+	for (int i = 0; i < beta.size(); ++i) {
+		h = 2.0 * freq[i] * (1.0 - freq[i]);
+		Vp = h * n[i] * se[i] * se[i] + h * beta[i] * beta[i] * n[i] / (n[i] - 1.0);
+		if (Vp < 0.0) {
+			spdlog::critical("Error in reading phenotype file {}: variance is less than zero (Vp = {:.2f}).", filename, Vp);
+			failed = true;
+			return;
+		}
+		Vp_v.push_back(Vp);
+	}
+
+	pheno_variance = v_calc_median(Vp_v);
 	spdlog::info("Phenotypic variance estimated from summary statistcs of all SNPs: {:.2f}", pheno_variance);
 }
+
+void phenotype::calc_pheno_variance(string filename, vector<double> freq, vector<double> beta, vector<double> se, vector<double> n)
+{
+	double h = 0.0, Vp = 0.0;
+
+	// Calculate variance of phenotype
+	if (pheno_variance < 0.0) {
+		spdlog::warn("It is preferable to use the full summary statistics to estimate the phenotype variance; you can ignore this warning if the summary statistics file you have provided are the full summary statistics.");
+		spdlog::warn("You can calculate the full phenotype variance by using either the '--pve' flag or '--pve_file' flag.");
+	}
+
+	for (int i = 0; i < beta.size(); ++i) {
+		h = 2.0 * freq[i] * (1.0 - freq[i]);
+		Vp = h * n[i] * se[i] * se[i] + h * beta[i] * beta[i] * n[i] / (n[i] - 1.0);
+		if (Vp < 0.0) {
+			spdlog::critical("Error in reading phenotype file {}: variance is less than zero (Vp = {:.2f}).", filename, Vp);
+			failed = true;
+			return;
+		}
+		Vp_v.push_back(Vp);
+	}
+
+	pheno_variance = v_calc_median(Vp_v);
+	spdlog::info("Phenotypic variance estimated from summary statistcs of all SNPs: {:.2f}", pheno_variance);
+}
+
 
 /*
  * Calculates the Phenotypic variance from full summary statistics.
  * @param string Filename to full summary statistics to calculate phenotypic variance from.
  */
-void phenotype::calc_pheno_variance(string pve_file)
+void phenotype::read_phenotypic_variance_file(string pve_file)
 {
 	string line;
 	map<string, int>::iterator iter;
 	int count = 0;
-	double h = 0.0, Vp = 0.0;
 	bool delim_found = false, n_warning = false, pve_warning = false;
 	char sep = '\t';
 
 	// Buffers
 	double freq_buf = -1.0, beta_buf = 0.0, se_buf = 0.0, n_buf = 0.0;
+	vector<double> freq, beta, se, n;
 
 	ifstream pfile(pve_file);
 	if (!pfile) {
@@ -312,6 +352,11 @@ void phenotype::calc_pheno_variance(string pve_file)
 
 			switch (tab) {
 			case 3: // Fourth column contains allele frequency of A1
+				if (no_freq) {
+					freq_buf = -2.0;
+					break;
+				}
+
 				checkEntry(substr, &freq_buf);
 				break;
 			case 4: // Fifth column contains beta
@@ -338,20 +383,34 @@ void phenotype::calc_pheno_variance(string pve_file)
 			n_buf = n_from_cmd;
 		}
 
-		// Calculate variance of phenotype
-		h = 2.0 * freq_buf * (1.0 - freq_buf);
-		Vp = h * n_buf * se_buf * se_buf + h * beta_buf * beta_buf * n_buf / (n_buf - 1.0);
-		if (Vp < 0.0) {
-			spdlog::critical("Error in reading phenotype file {}: variance is less than zero (Vp = {:.2f}).", pve_file, Vp);
-			failed = true;
-		}
-		Vp_v.push_back(Vp);
+		freq.push_back(freq_buf);
+		beta.push_back(beta_buf);
+		se.push_back(se_buf);
+		n.push_back(n_buf);
 	}
 
 	pfile.close();
-	pheno_variance = v_calc_median(Vp_v);
+}
 
-	spdlog::info("Phenotypic variance estimated from summary statistcs of all SNPs: {:.2f}", pheno_variance);
+/*
+ * Copies across frequencies derived from the reference data to the summary statistics
+ * @param phenotype Phenotype class
+ * @ret void
+ */
+void phenotype::copy_frequencies(const vector<double> freqs)
+{
+	copy(freqs.begin(), freqs.end(), back_inserter(freq));
+
+	/*
+	// This should never happen as the copying occurs AFTER matching the phenotype data
+	// to the reference data
+	auto is_negative = [](double i) { return i < 0.0; };
+	auto it = find_if(freq.begin(), freq.end(), is_negative);
+	if (it != freq.end()) {
+		spdlog::error("copy_frequencies: Error copying frequencies -- some SNPs were not found in the reference data!");
+		failed = true;
+	}
+	*/
 }
 
 /*
@@ -898,7 +957,7 @@ int reference::read_bedfile(string bedfile)
 	char *buf = new char[sample_size];
 
 #ifdef OMP_TEST
-	spdlog::critical("This feature is in beta -- please do not use if not for testing.");
+	spdlog::critical("This feature is in beta -- please be aware of this.");
 	spdlog::info("Reading .bed file using OpenMP. More threads should increase performance of this.");
 #pragma omp parallel for
 	for (size_t j = 0; j < to_include_bim.size(); j++)

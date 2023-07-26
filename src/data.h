@@ -34,7 +34,7 @@ class cond_analysis;
 
 class phenotype {
 public:
-	phenotype(string name, double n, double n_case, double pve, string pve_file);
+	phenotype(string name, double n, double n_case, double pve, bool no_freq, string pve_file);
 	phenotype();
 
 	void read_phenofile(string filename);
@@ -60,6 +60,8 @@ public:
 		return ctype;
 	}
 
+	void copy_frequencies(const vector<double> freqs);
+
 	// From phenotype file
 	vector<string> snp_name;
 	vector<string> allele1;
@@ -76,18 +78,21 @@ public:
 	vector<size_t> matched_idx; /// Indicies of SNPs that have been matched
 
 private:
-	void calc_pheno_variance(string pve_file);
+	void read_phenotypic_variance_file(string pve_file);
+	void calc_pheno_variance(string filename);
+	void calc_pheno_variance(string filename, vector<double> freq, vector<double> beta, vector<double> se, vector<double> n);
 
 	string pheno_name;
 	double pheno_variance; /// Estimated phenotypic variance from summary stats
 	double n_from_cmd; /// N passed from command line
 	double n_case_from_cmd; /// N_cases passed from command line
 
+	bool no_freq; // Dataset does not have frequencies; ignore freq-related functions
 	bool failed; // Phenotype reading failed in some way
 	coloc_type ctype; // Type of coloc to use: cc or quant
 };
 
-phenotype *init_pheno(string filename, string pheno_name, double n, double n_case, double pve, string pve_file);
+phenotype *init_pheno(string filename, string pheno_name, double n, double n_case, double pve, bool no_freq, string pve_file);
 
 class mdata {
 public:
@@ -147,6 +152,10 @@ public:
 
 	bool is_ready() {
 		return read;
+	}
+
+	vector<double> get_freqs() {
+		return mu_m;
 	}
 
 	// From .bim

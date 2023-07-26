@@ -31,7 +31,7 @@ int main(int argc, char* argv[])
 	 * Option reading
 	 */
 	unsigned short chr = 0;
-	int i = 0, threads = 8;
+	int i = 0, threads = 8, no_freq = 0;
 	double p_cutoff1 = 5e-8, p_cutoff2 = 5e-8,
 		collinear = 0.9, maf = 0.1, ld_window = 1.0e7,
 		freq_threshold = 0.2, init_h4 = 80, top_snp = 1e10,
@@ -43,13 +43,17 @@ int main(int argc, char* argv[])
 		out = "pwcoco_out", log = "pwcoco_log", snplist = "",
 		pve_file1 = "", pve_file2 = "",
 		opt;
-	bool out_cond = false, cond_ssize = false,
+	bool out_cond = false, 
+		cond_ssize = false,
 		verbose = false,
 		data_folder = false; // Whether the data is in folders or files
 
 	for (i = 1; i < argc; i++) {
 		opt = argv[i];
 
+		/*
+		 * Required flags
+		 */
 		if (opt == "--bfile") {
 			bfile = argv[++i];
 
@@ -83,6 +87,24 @@ int main(int argc, char* argv[])
 			spdlog::info("Calculating phenotypic variance from {}.", pve_file2);
 		}
 
+		/*
+		 * Flags with prio
+		 */
+		else if (opt == "--no_freq") {
+			string next_opt = argv[i++];
+			if (next_opt.rfind("--") == 0) {
+				no_freq = 3;
+			}
+			else {
+				no_freq = stoi(argv[++i]); // Remember to iterate past this argument
+			}
+
+			spdlog::info("--no_freq {}.", no_freq);
+		}
+		 
+		/*
+		 * Optional flags
+		 */
 		else if (opt == "--n1") {
 			n1 = stod(argv[++i]);
 			if (n1 <= 0) {
@@ -178,6 +200,10 @@ int main(int argc, char* argv[])
 			spdlog::info("--collinear {}.", collinear);
 		}
 		else if (opt == "--maf") {
+			if (no_freq > 0) {
+				spdlog::warn("`--maf` flag is not compatible with `--no_freq`; ignoring `--maf`!");
+				continue;
+			}
 			maf = stod(argv[++i]);
 
 			if (maf < 0.0 || maf > 0.5) {
@@ -187,6 +213,10 @@ int main(int argc, char* argv[])
 			spdlog::info("--maf {}.", maf);
 		}
 		else if (opt == "--freq_threshold") {
+			if (no_freq > 0) {
+				spdlog::warn("`--freq_threshold` flag is not compatible with `--no_freq`; ignoring `--freq_threshold`!");
+				continue;
+			}
 			freq_threshold = stod(argv[++i]);
 
 			if (freq_threshold < 0.0 || freq_threshold > 1.0) {
@@ -351,8 +381,8 @@ int main(int argc, char* argv[])
 				path_to_file1{ dir_entry.path().u8string() },
 				path_to_file2 = phen2_file + "/" + filename;
 
-			phenotype *exposure = init_pheno(path_to_file1, filename + ".exp", n1, n1_case, pve1, pve_file1);
-			phenotype *outcome = init_pheno(path_to_file2, filename + ".out", n2, n2_case, pve2, pve_file2);
+			phenotype *exposure = init_pheno(path_to_file1, filename + ".exp", n1, n1_case, pve1, (bool)(no_freq & 1), pve_file1);
+			phenotype *outcome = init_pheno(path_to_file2, filename + ".out", n2, n2_case, pve2, (bool)(no_freq & 2), pve_file2);
 			if (exposure->has_failed() || outcome->has_failed()) {
 				spdlog::error("Reading of either summary statistic files has failed; have these been moved or altered?");
 				spdlog::error("File 1: {}", path_to_file1);
@@ -392,9 +422,17 @@ int main(int argc, char* argv[])
 			ref->match_bim(exposure->get_snp_names(), outcome->get_snp_names(), true);
 			ref->sanitise_list();
 
-			if (maf > 0.0) {
+			if (maf > 0.0 && no_freq < 1) {
 				if (ref->filter_snp_maf(maf) == 0)
 					return 0;
+			}
+			if (no_freq > 0) {
+				if (no_freq & 1) {
+					exposure->copy_frequencies(ref->get_freqs());
+				}
+				if (no_freq & 2) {
+					outcome->copy_frequencies(ref->get_freqs());
+				}
 			}
 
 			// Do the related conditional and colocalisation analyses
@@ -406,8 +444,8 @@ int main(int argc, char* argv[])
 	else {
 		// Case 2
 		// Files were given
-		phenotype *exposure = init_pheno(phen1_file, fs::path(phen1_file).filename().string(), n1, n1_case, pve1, pve_file1);
-		phenotype *outcome = init_pheno(phen2_file, fs::path(phen2_file).filename().string(), n2, n2_case, pve2, pve_file2);
+		phenotype *exposure = init_pheno(phen1_file, fs::path(phen1_file).filename().string(), n1, n1_case, pve1, (bool)(no_freq & 1), pve_file1);
+		phenotype *outcome = init_pheno(phen2_file, fs::path(phen2_file).filename().string(), n2, n2_case, pve2, (bool)(no_freq & 2), pve_file2);
 		if (exposure->has_failed() || outcome->has_failed()) {
 			spdlog::critical("Reading of either summary statistic files has failed; have these been moved or altered?");
 			return 1;
@@ -435,7 +473,7 @@ int main(int argc, char* argv[])
 			return 0;
 		}
 		//ref->calculate_allele_freq();
-		if (maf > 0.0) {
+		if (maf > 0.0 && no_freq < 1) {
 			if (ref->filter_snp_maf(maf) == 0)
 				return 0;
 		}
