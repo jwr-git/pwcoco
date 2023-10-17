@@ -117,7 +117,7 @@ Column names do not matter, only the order of the data. The `n` and `case` colum
 ### Output File Formats
 The program by default will output a file with the ending `.coloc` which contains the results for each of the colocalisation analyses run:
 
-`SNP1	SNP2	H0	H1	H2	H3	H4	log_abf_all`
+`Dataset1	Dataset2	SNP1	SNP2	nsnps	H0	H1	H2	H3	H4	log_abf_all`
 
 If the data has been unconditioned, then the SNP column will contain "unconditioned" instead of a SNP name. Please note that output files **are not** deleted or overwritten between runs. That means if you run the program twice with the same output file name, results will be appended to the output file. SNPs correspond to the same numbered phenotype file, e.g. SNP1 comes from sum_stats1.
 

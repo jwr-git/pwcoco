@@ -784,7 +784,7 @@ void cond_analysis::pw_conditional(int pos, bool out_cond, conditional_dat *cdat
 
 	massoc_conditional(selected, remain, cdat, bC, bC_se, pC, ref);
 	if (out_cond) {
-		sanitise_output(selected, remain, pos, cdat, bC, bC_se, pC, ref);
+		sanitise_output(ind_snps, remain, pos, cdat, bC, bC_se, pC, ref);
 	}
 
 	// Save in friendly format for mdata class
