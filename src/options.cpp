@@ -286,12 +286,12 @@ int main(int argc, char* argv[])
 			spdlog::info("--verbose.");
 		}
 		else if (opt == "--pve1") {
-			pve1 = stoi(argv[++i]);
+			pve1 = stod(argv[++i]);
 
 			spdlog::info("--pve1 {}.", pve1);
 		}
 		else if (opt == "--pve2") {
-			pve2 = stoi(argv[++i]);
+			pve2 = stod(argv[++i]);
 
 			spdlog::info("--pve2 {}.", pve2);
 		}
