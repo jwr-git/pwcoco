@@ -411,7 +411,7 @@ int main(int argc, char* argv[])
 			for (const auto &dir_entry2 : recursive_directory_iterator(phen2_file))
 			{
 				string filename2{ dir_entry2.path().filename().u8string() },
-					path_to_file2{ dir_entry.path().u8string() };
+					path_to_file2{ dir_entry2.path().u8string() };
 
 				if (!pairwise && !path_to_file1.compare(path_to_file2)) {
 					continue;
