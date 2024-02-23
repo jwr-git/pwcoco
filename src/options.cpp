@@ -40,7 +40,8 @@ int main(int argc, char* argv[])
 		opt;
 	bool out_cond = false, cond_ssize = false,
 		verbose = false,
-		data_folder = false; // Whether the data is in folders or files
+		data_folder = false, // Whether the data is in folders or files
+		pairwise = false; // Whether to run PWCoCo on the pairwise combination of folders or not (if folders are given)
 
 	for (i = 1; i < argc; i++) {
 		opt = argv[i];
@@ -97,6 +98,9 @@ int main(int argc, char* argv[])
 			spdlog::info("	--threads                  Number of threads available for OpenMP multi-threaded functions; default is 8.");
 			spdlog::info("");
 			spdlog::info("	--verbose                  Output extra files and messages for debugging purposes.");
+			spdlog::info("");
+			spdlog::info("	--pairwise                 If using folders as input, will run PWCoCo on the pairwise combination of files.");
+			spdlog::info("	                           Without this flag, the files must match based on name.");
 		}
 
 		if (opt == "--bfile") {
@@ -295,6 +299,11 @@ int main(int argc, char* argv[])
 
 			spdlog::info("--pve2 {}.", pve2);
 		}
+		else if (opt == "--pairwise") {
+			pairwise = true;
+
+			spdlog::info("--pairwise.");
+		}
 	}
 
 	// First set up the logger
@@ -394,61 +403,70 @@ int main(int argc, char* argv[])
 		// Folders were given
 		// therefore we expect the same file name in two different folders
 		using recursive_directory_iterator = fs::recursive_directory_iterator;
-		for (const auto &dir_entry : recursive_directory_iterator(phen1_file)) 
+		for (const auto &dir_entry : recursive_directory_iterator(phen1_file))
 		{
 			string filename{ dir_entry.path().filename().u8string() },
-				path_to_file1{ dir_entry.path().u8string() },
-				path_to_file2 = phen2_file + "/" + filename;
+				path_to_file1{ dir_entry.path().u8string() };
 
-			phenotype *exposure = init_pheno(path_to_file1, filename + ".exp", n1, n1_case, pve1, pve_file1);
-			phenotype *outcome = init_pheno(path_to_file2, filename + ".out", n2, n2_case, pve2, pve_file2);
-			if (exposure->has_failed() || outcome->has_failed()) {
-				spdlog::error("Reading of either summary statistic files has failed; have these been moved or altered?");
-				spdlog::error("File 1: {}", path_to_file1);
-				spdlog::error("File 2: {}", path_to_file2);
-				continue;
-			}
+			for (const auto &dir_entry2 : recursive_directory_iterator(phen2_file))
+			{
+				string filename2{ dir_entry2.path().filename().u8string() },
+					path_to_file2{ dir_entry.path().u8string() };
 
-			if (initial_coloc(exposure, outcome, out, p1, p2, p3, init_h4)) {
-				continue;
-			}
-
-			if (!ref->is_ready()) {
-				// Bim-related first
-				if (ref->read_bimfile(bim_file) == 0) {
-					return 0;
+				if (!pairwise && !path_to_file1.compare(path_to_file2)) {
+					continue;
 				}
-				// In case 1, we load all of the SNPs in the reference data as they may be required
-				ref->whole_bim();
+
+				phenotype *exposure = init_pheno(path_to_file1, filename + (pairwise ? "" : ".exp"), n1, n1_case, pve1, pve_file1);
+				phenotype *outcome = init_pheno(path_to_file2, filename + (pairwise ? "" : ".out"), n2, n2_case, pve2, pve_file2);
+				if (exposure->has_failed() || outcome->has_failed()) {
+					spdlog::error("Reading of either summary statistic files has failed; have these been moved or altered?");
+					spdlog::error("File 1: {}", path_to_file1);
+					spdlog::error("File 2: {}", path_to_file2);
+					continue;
+				}
+
+				if (initial_coloc(exposure, outcome, out, p1, p2, p3, init_h4)) {
+					continue;
+				}
+
+				if (!ref->is_ready()) {
+					// Bim-related first
+					if (ref->read_bimfile(bim_file) == 0) {
+						return 0;
+					}
+					// In case 1, we load all of the SNPs in the reference data as they may be required
+					ref->whole_bim();
+					ref->sanitise_list();
+
+					// Fam-related
+					if (ref->read_famfile(fam_file) == 0) {
+						return 0;
+					}
+
+					// Finally bed-related
+					if (ref->read_bedfile(bed_file) == 0) {
+						return 0;
+					}
+				}
+				else {
+					// Need to clear previous matching
+					ref->reset_vectors();
+				}
+
+				// Match SNPs to bim
+				ref->match_bim(exposure->get_snp_names(), outcome->get_snp_names(), true);
 				ref->sanitise_list();
 
-				// Fam-related
-				if (ref->read_famfile(fam_file) == 0) {
-					return 0;
+				if (maf > 0.0) {
+					if (ref->filter_snp_maf(maf) == 0)
+						return 0;
 				}
 
-				// Finally bed-related
-				if (ref->read_bedfile(bed_file) == 0) {
-					return 0;
+				// Do the related conditional and colocalisation analyses
+				if (pwcoco_sub(exposure, outcome, ref, p_cutoff1, p_cutoff2, collinear, ld_window, out, top_snp, freq_threshold, cond_ssize, out_cond, p1, p2, p3, verbose)) {
+					continue;
 				}
-			}
-			else {
-				// Need to clear previous matching
-				ref->reset_vectors();
-			}
-
-			// Match SNPs to bim
-			ref->match_bim(exposure->get_snp_names(), outcome->get_snp_names(), true);
-			ref->sanitise_list();
-
-			if (maf > 0.0) {
-				if (ref->filter_snp_maf(maf) == 0)
-					return 0;
-			}
-
-			// Do the related conditional and colocalisation analyses
-			if (pwcoco_sub(exposure, outcome, ref, p_cutoff1, p_cutoff2, collinear, ld_window, out, top_snp, freq_threshold, cond_ssize, out_cond, p1, p2, p3, verbose)) {
-				continue;
 			}
 		}
 	}
