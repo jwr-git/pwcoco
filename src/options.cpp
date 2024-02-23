@@ -418,7 +418,7 @@ int main(int argc, char* argv[])
 				}
 
 				phenotype *exposure = init_pheno(path_to_file1, filename + (pairwise ? "" : ".exp"), n1, n1_case, pve1, pve_file1);
-				phenotype *outcome = init_pheno(path_to_file2, filename + (pairwise ? "" : ".out"), n2, n2_case, pve2, pve_file2);
+				phenotype *outcome = init_pheno(path_to_file2, filename2 + (pairwise ? "" : ".out"), n2, n2_case, pve2, pve_file2);
 				if (exposure->has_failed() || outcome->has_failed()) {
 					spdlog::error("Reading of either summary statistic files has failed; have these been moved or altered?");
 					spdlog::error("File 1: {}", path_to_file1);
