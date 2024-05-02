@@ -130,6 +130,11 @@ void coloc_analysis::combine_abf(size_t abf_size)
  */
 void coloc_analysis::init_coloc(string exp, string out)
 {
+	if (matched->snps1.size() <= 0 || matched->snps2.size() <= 0) {
+		spdlog::warn("Could not conduct colocalisation analysis for {} and {} as no SNPs were included in the analysis.", exp, out);
+		return;
+	}
+
 	perform_coloc();
 	spdlog::info("Unconditioned colocalisation results.");
 	spdlog::info("H0: {:.2f}; H1: {:.2f}; H2: {:.2f}; H3: {:.2f}; H4: {:.2f}; abf_all: {:.2f}.", pp_abf[H0], pp_abf[H1], pp_abf[H2], pp_abf[H3], pp_abf[H4], log_abf_all);
@@ -142,6 +147,11 @@ void coloc_analysis::init_coloc(string exp, string out)
  */
 void coloc_analysis::init_coloc(string snp1, string snp2, string exp, string out)
 {
+	if (matched->snps1.size() <= 0 || matched->snps2.size() <= 0) {
+		spdlog::warn("Could not conduct colocalisation analysis for {} and {} as no SNPs were included in the analysis.", exp, out);
+		return;
+	}
+
 	if (perform_coloc() == false)
 		return;
 	spdlog::info("Conditioned results for SNP1: {}, SNP2: {}", snp1, snp2);
@@ -203,8 +213,8 @@ void coloc_analysis::results_to_file(string s1, string s2, string exp, string ou
 	}
 	
 	if (write_header) {
-		file << "Dataset1\tDataset2\tSNP1\tSNP2\tH0\tH1\tH2\tH3\tH4\tlog_abf_all" << endl;
+		file << "Dataset1\tDataset2\tSNP1\tSNP2\tnsnps\tH0\tH1\tH2\tH3\tH4\tlog_abf_all" << endl;
 	}
-	file << exp << "\t" << out << "\t" << s1 << "\t" << s2 << "\t" << pp_abf[H0] << "\t" << pp_abf[H1] << "\t" << pp_abf[H2] << "\t" << pp_abf[H3] << "\t" << pp_abf[H4] << "\t" << log_abf_all << endl;
+	file << exp << "\t" << out << "\t" << s1 << "\t" << s2 << "\t" << num_snps() << "\t" << pp_abf[H0] << "\t" << pp_abf[H1] << "\t" << pp_abf[H2] << "\t" << pp_abf[H3] << "\t" << pp_abf[H4] << "\t" << log_abf_all << endl;
 	file.close();
 }

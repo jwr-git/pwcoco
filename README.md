@@ -1,7 +1,25 @@
 # Pair-Wise Conditional analysis and Colocalisation analysis (PWCoCo)
-A C++ implementation of the PWCoCo algorithm described by Zheng, et al in their paper, [Phenome-wide Mendelian randomization mapping the influence of the plasma proteome on complex diseases](https://doi.org/10.1038/s41588-020-0682-6). 
+A C++ implementation of the PWCoCo algorithm first described by Zheng, et al in their paper, [Phenome-wide Mendelian randomization mapping the influence of the plasma proteome on complex diseases](https://doi.org/10.1038/s41588-020-0682-6). 
 
 This tool integrates methods from [GCTA-COJO](https://cnsgenomics.com/software/gcta/#Overview) and the [coloc](https://chr1swallace.github.io/coloc/index.html) R package.
+
+## Citation
+
+Please cite our [pre-print](https://doi.org/10.1101/2022.08.08.503158)!
+
+```
+@article {Robinson2022.08.08.503158,
+	author = {Robinson, Jamie W and Hemani, Gibran and Babaei, Mahsa Sheikhali and Huang, Yunfeng and Baird, Denis A and Tsai, Ellen A and Chen, Chia-Yen and Gaunt, Tom R and Zheng, Jie},
+	title = {An efficient and robust tool for colocalisation: Pair-wise Conditional and Colocalisation (PWCoCo)},
+	elocation-id = {2022.08.08.503158},
+	year = {2022},
+	doi = {10.1101/2022.08.08.503158},
+	publisher = {Cold Spring Harbor Laboratory},
+	URL = {https://www.biorxiv.org/content/early/2022/08/08/2022.08.08.503158},
+	eprint = {https://www.biorxiv.org/content/early/2022/08/08/2022.08.08.503158.full.pdf},
+	journal = {bioRxiv}
+}
+```
 
 ## Requirements
 - C++17 or newer
@@ -92,14 +110,14 @@ At the end of the day, PWCoCo is still built with performance and efficiency in 
 #### Input File Formats
 Phenotype files do not require a certain file format. Instead, they _must_ follow this structure:
 
-`SNP	effect_allele	other_allele	effect_allele_freq	beta	se	p	{n	{case}}`
+`SNP	A1	A2	A1_freq	beta	se	p	{n	{case}}`
 
 Column names do not matter, only the order of the data. The `n` and `case` columns are optional and should be given for phenotypes which are measured in case/control studies - where `n` will be the total sample size and `case` only case numbers. Including this column will cause the colocalisation to treat this as `cc` typed data (and not `quant` which only has `n`, total sample size, available). These may also be provided through the command line arguments.
 
 ### Output File Formats
 The program by default will output a file with the ending `.coloc` which contains the results for each of the colocalisation analyses run:
 
-`SNP1	SNP2	H0	H1	H2	H3	H4	log_abf_all`
+`Dataset1	Dataset2	SNP1	SNP2	nsnps	H0	H1	H2	H3	H4	log_abf_all`
 
 If the data has been unconditioned, then the SNP column will contain "unconditioned" instead of a SNP name. Please note that output files **are not** deleted or overwritten between runs. That means if you run the program twice with the same output file name, results will be appended to the output file. SNPs correspond to the same numbered phenotype file, e.g. SNP1 comes from sum_stats1.
 

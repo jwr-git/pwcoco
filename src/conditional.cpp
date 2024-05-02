@@ -783,8 +783,8 @@ void cond_analysis::pw_conditional(int pos, bool out_cond, conditional_dat *cdat
 	}
 
 	massoc_conditional(selected, remain, cdat, bC, bC_se, pC, ref);
-	if (out_cond) {
-		sanitise_output(selected, remain, pos, cdat, bC, bC_se, pC, ref);
+	if (out_cond && pos > -1) {
+		sanitise_output(ind_snps, remain, pos, cdat, bC, bC_se, pC, ref);
 	}
 
 	// Save in friendly format for mdata class
@@ -918,7 +918,7 @@ void cond_analysis::sanitise_output(vector<size_t> &selected, vector<size_t> &re
 	size_t i = 0, j = 0, k;
 
 	filename = a_out + "." + get_cond_name();
-	filename = filename + "." + ref->bim_snp_name[to_include[remain.back()]] + ".cojo";
+	filename = filename + "." + ref->bim_snp_name[to_include[selected[pos]]] + ".cojo";
 	ofstream ofile(filename);
 
 	if (!ofile) {
