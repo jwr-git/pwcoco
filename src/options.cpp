@@ -20,6 +20,7 @@ int main(int argc, char* argv[])
 	spdlog::info(" *                                      *");
 	spdlog::info(" ****************************************");
 
+	spdlog::info("Version: 1.1.1");
 	spdlog::info("!! Remember to periodically 'git pull' in your PWCoCo directory to obtain the latest updates and bug fixes !!");
 
 	/*
@@ -45,6 +46,10 @@ int main(int argc, char* argv[])
 
 	for (i = 1; i < argc; i++) {
 		opt = argv[i];
+
+		if (opt == "--version") {
+			spdlog::info("Version: 1.1.1");
+		}
 
 		if (opt == "--help") {
 			spdlog::info("Usage: pwcoco [options]");
