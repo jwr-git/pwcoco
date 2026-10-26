@@ -6,7 +6,9 @@
 #include <iostream>
 #include <fstream>
 #include <map>
+#ifdef _OPENMP
 #include <omp.h>
+#endif
 #include <string>
 #include <sstream>
 #include <vector>

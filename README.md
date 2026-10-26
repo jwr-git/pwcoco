@@ -32,7 +32,7 @@ Additional Libraries:
 These additional libraries are bundled in `/include/` at the required versions for ease of the user.
 
 ## How to Build
-Currently, only Unix and Windows are supported.
+Currently, Unix (including macOS) and Windows are supported.
 
 ### Unix
 To build on Unix systems, clone this repository and follow the code below:
@@ -44,6 +44,16 @@ make
 ```
 
 If building on the University of Bristol's HPC, load the module `languages/gcc-9.1.0` and ensure this is the **only** gcc module loaded. Also, if you do not have a cmake module loaded, please load, for example, `tools/cmake-3.13.4`. This should be all you need to build the program.
+
+### macOS
+The Unix steps above work with Apple's compiler, but build without OpenMP (single-threaded). To enable OpenMP, install `libomp` with [Homebrew](https://brew.sh) and point CMake at it:
+```
+brew install libomp
+mkdir build
+cd build
+cmake -DCMAKE_PREFIX_PATH=$(brew --prefix libomp) ..
+make
+```
 
 ### Windows
 

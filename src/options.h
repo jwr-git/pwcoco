@@ -3,7 +3,9 @@
 #include <algorithm>
 #include <chrono>
 #include <iostream>
+#ifdef _OPENMP
 #include <omp.h>
+#endif
 #include <time.h>
 #include <thread>
 #include <filesystem>

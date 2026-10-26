@@ -32,7 +32,10 @@ endif()
 
 add_executable(pwcoco src/options.cpp src/coloc.cpp src/conditional.cpp src/data.cpp src/dcdflib.cpp src/helper_funcs.cpp)
 target_compile_features(pwcoco PRIVATE cxx_std_17)
-target_link_libraries(pwcoco PRIVATE stdc++fs)
+# std::filesystem needs a separate library only on GCC before 9.1
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.1)
+	target_link_libraries(pwcoco PRIVATE stdc++fs)
+endif()
 
 find_package(OpenMP)
 if (OpenMP_CXX_FOUND)
