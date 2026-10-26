@@ -100,6 +100,18 @@ public:
 		return snps1;
 	}
 
+	// Swaps datasets 1 and 2, e.g. to restore sum_stats1 as dataset 1
+	void swap_datasets() {
+		snps1.swap(snps2);
+		betas1.swap(betas2);
+		ses1.swap(ses2);
+		pvals1.swap(pvals2);
+		mafs1.swap(mafs2);
+		ns1.swap(ns2);
+		s1.swap(s2);
+		std::swap(type1, type2);
+	}
+
 	// Data from datasets
 	// These are matched!
 	vector<string> snps1, snps2;

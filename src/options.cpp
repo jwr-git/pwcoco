@@ -636,8 +636,11 @@ int pwcoco_sub(phenotype *exposure, phenotype *outcome, reference *ref, double p
 				continue;
 
 			mdata *matched_conditional;
-			if (exp_snp_name == "unconditioned")
+			if (exp_snp_name == "unconditioned") {
+				// Constructor puts the conditioned outcome first; keep the exposure as dataset 1
 				matched_conditional = new mdata(out_analysis, exposure);
+				matched_conditional->swap_datasets();
+			}
 			else if (out_snp_name == "unconditioned")
 				matched_conditional = new mdata(exp_analysis, outcome);
 			else
