@@ -15,8 +15,8 @@ cond_analysis::cond_analysis(double p_cutoff, double collinear, double ld_window
 	a_top_snp = top_snp;
 
 	num_snps = 0;
-	cond_ssize = cond_ssize;
-	verbose = verbose;
+	this->cond_ssize = cond_ssize;
+	this->verbose = verbose;
 }
 
 /*
